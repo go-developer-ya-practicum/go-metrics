@@ -23,6 +23,7 @@ func postMetric(url string) {
 	response, err := http.Post(url, "text/plain", nil)
 	if err != nil {
 		log.Warnf("Failed to post metric: %v", err)
+		return
 	}
 	if err := response.Body.Close(); err != nil {
 		log.Warnf("Failed to close response body: %v", err)
