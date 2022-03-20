@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestHandler(t *testing.T) {
+func TestHandlerStore(t *testing.T) {
 	tests := []struct {
 		name        string
 		request     string
@@ -15,20 +15,6 @@ func TestHandler(t *testing.T) {
 		contentType string
 		statusCode  int
 	}{
-		{
-			name:        "Unsupported HTTP method",
-			request:     "/update/counter/PollCount/1",
-			method:      http.MethodGet,
-			contentType: "text/plain",
-			statusCode:  http.StatusNotFound,
-		},
-		{
-			name:        "Unsupported content type",
-			request:     "/update/counter/PollCount/1",
-			method:      http.MethodPost,
-			contentType: "application/json",
-			statusCode:  http.StatusNotFound,
-		},
 		{
 			name:        "Bad URL parts count",
 			request:     "/update/PollCount/1",

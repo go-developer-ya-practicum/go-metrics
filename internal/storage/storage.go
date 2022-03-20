@@ -32,22 +32,16 @@ func (storage *Storage) UpdateCounter(name string, value int64) {
 	}
 }
 
-func (storage *Storage) GetGauge(name string) float64 {
+func (storage *Storage) GetGauge(name string) (value float64, ok bool) {
 	storage.RLock()
 	defer storage.RUnlock()
-	if value, ok := storage.GaugeMetrics[name]; ok {
-		return value
-	} else {
-		return 0.0
-	}
+	value, ok = storage.GaugeMetrics[name]
+	return
 }
 
-func (storage *Storage) GetCounter(name string) int64 {
+func (storage *Storage) GetCounter(name string) (value int64, ok bool) {
 	storage.RLock()
 	defer storage.RUnlock()
-	if value, ok := storage.CounterMetrics[name]; ok {
-		return value
-	} else {
-		return 0
-	}
+	value, ok = storage.CounterMetrics[name]
+	return
 }

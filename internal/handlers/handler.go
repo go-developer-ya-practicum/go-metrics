@@ -2,72 +2,87 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
 	"net/http"
 	"strconv"
-	"strings"
 
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
+	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
+	*chi.Mux
 	Storage *storage.Storage
 }
 
 func NewHandler() *Handler {
-	return &Handler{
+	h := &Handler{
+		Mux:     chi.NewMux(),
 		Storage: storage.NewStorage(),
+	}
+	h.Post("/update/{metricType}/{metricName}/{metricValue}", h.PutMetric())
+	h.Get("/value/{metricType}/{metricName}", h.GetMetric())
+	return h
+}
+
+func (h *Handler) GetMetric() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		metricType := chi.URLParam(r, "metricType")
+		metricName := chi.URLParam(r, "metricName")
+
+		switch metricType {
+		case "gauge":
+			if value, ok := h.Storage.GetGauge(metricName); !ok {
+				w.WriteHeader(http.StatusNotFound)
+			} else {
+				w.WriteHeader(http.StatusOK)
+				strValue := strconv.FormatFloat(value, 'f', -1, 64)
+				w.Write([]byte(strValue))
+			}
+		case "counter":
+			if value, ok := h.Storage.GetCounter(metricName); !ok {
+				w.WriteHeader(http.StatusNotFound)
+			} else {
+				w.WriteHeader(http.StatusOK)
+				strValue := fmt.Sprintf("%d", value)
+				w.Write([]byte(strValue))
+			}
+		default:
+			msg := fmt.Sprintf("Unknown metric type '%s'", metricType)
+			http.Error(w, msg, http.StatusNotImplemented)
+		}
 	}
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		msg := fmt.Sprintf("Unsupported %s method", r.Method)
-		http.Error(w, msg, http.StatusNotFound)
-		return
-	}
-	contentType := r.Header.Get("Content-type")
-	if contentType != "" && contentType != "text/plain" {
-		msg := fmt.Sprintf("Unknown content type: %s", contentType)
-		http.Error(w, msg, http.StatusNotFound)
-		return
-	}
-	urlParts := strings.Split(r.URL.Path, "/")
-	if len(urlParts) != 5 {
-		http.Error(w, "Bad URL", http.StatusNotFound)
-		return
-	}
-	if urlParts[1] != "update" {
-		http.Error(w, "Bad URL", http.StatusNotFound)
-		return
-	}
+func (h *Handler) PutMetric() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		metricType := chi.URLParam(r, "metricType")
+		metricName := chi.URLParam(r, "metricName")
+		metricValue := chi.URLParam(r, "metricValue")
 
-	metricType := urlParts[2]
-	metricName := urlParts[3]
-	metricValue := urlParts[4]
+		switch metricType {
+		case "gauge":
+			value, err := strconv.ParseFloat(metricValue, 64)
+			if err != nil {
+				msg := fmt.Sprintf("Failed to parse gauge value '%s'", metricValue)
+				http.Error(w, msg, http.StatusBadRequest)
+				return
+			}
 
-	switch metricType {
-	case "gauge":
-		value, err := strconv.ParseFloat(metricValue, 64)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to parse gauge value '%s'", metricValue)
-			http.Error(w, msg, http.StatusBadRequest)
-			return
+			w.WriteHeader(http.StatusOK)
+			h.Storage.PutGauge(metricName, value)
+		case "counter":
+			value, err := strconv.ParseInt(metricValue, 10, 64)
+			if err != nil {
+				msg := fmt.Sprintf("Failed to parse counter value '%s'", metricValue)
+				http.Error(w, msg, http.StatusBadRequest)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			h.Storage.UpdateCounter(metricName, value)
+		default:
+			msg := fmt.Sprintf("Unknown metric type '%s'", metricType)
+			http.Error(w, msg, http.StatusNotImplemented)
 		}
-
-		w.WriteHeader(http.StatusOK)
-		h.Storage.PutGauge(metricName, value)
-	case "counter":
-		value, err := strconv.ParseInt(metricValue, 10, 64)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to parse counter value '%s'", metricValue)
-			http.Error(w, msg, http.StatusBadRequest)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		h.Storage.UpdateCounter(metricName, value)
-	default:
-		msg := fmt.Sprintf("Unknown metric type '%s'", metricType)
-		http.Error(w, msg, http.StatusNotImplemented)
 	}
 }
