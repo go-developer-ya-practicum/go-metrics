@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 
@@ -11,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/types"
 )
 
 //go:embed index.html
@@ -29,6 +32,8 @@ func NewHandler() *Handler {
 	h.Get("/", h.GetAllMetrics())
 	h.Get("/value/{metricType}/{metricName}", h.GetMetric())
 	h.Post("/update/{metricType}/{metricName}/{metricValue}", h.PutMetric())
+	h.Post("/update/", h.PutMetricJSON())
+	h.Post("/value/", h.GetMetricJSON())
 	return h
 }
 
@@ -113,5 +118,97 @@ func (h *Handler) PutMetric() http.HandlerFunc {
 			msg := fmt.Sprintf("Unknown metric type '%s'", metricType)
 			http.Error(w, msg, http.StatusNotImplemented)
 		}
+	}
+}
+
+func (h *Handler) PutMetricJSON() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Header.Get("Content-Type") != "application/json" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var metric types.Metrics
+		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if err := h.storeMetric(metric); err != nil {
+			w.WriteHeader(http.StatusNotImplemented)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (h *Handler) GetMetricJSON() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Header.Get("Content-Type") != "application/json" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var metric types.Metrics
+		err = json.Unmarshal(body, &metric)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		switch metric.MType {
+		case "gauge":
+			if value, ok := h.Storage.GetGauge(metric.ID); !ok {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			} else {
+				metric.Value = &value
+			}
+		case "counter":
+			if value, ok := h.Storage.GetCounter(metric.ID); !ok {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			} else {
+				metric.Delta = &value
+			}
+		default:
+			w.WriteHeader(http.StatusNotImplemented)
+		}
+
+		if err = json.NewEncoder(w).Encode(metric); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (h *Handler) storeMetric(metric types.Metrics) error {
+	switch metric.MType {
+	case "gauge":
+		if metric.Value == nil {
+			return fmt.Errorf("empty '%s' metric value", metric.ID)
+		}
+		h.Storage.PutGauge(metric.ID, *metric.Value)
+		return nil
+	case "counter":
+		if metric.Delta == nil {
+			return fmt.Errorf("empty '%s' metric value", metric.ID)
+		}
+		h.Storage.UpdateCounter(metric.ID, *metric.Delta)
+		return nil
+	default:
+		return fmt.Errorf("unknown metric type %s", metric.MType)
 	}
 }
