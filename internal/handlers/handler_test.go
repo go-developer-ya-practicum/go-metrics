@@ -12,47 +12,47 @@ import (
 func TestHandler_PutMetric(t *testing.T) {
 	tests := []struct {
 		name       string
-		request    string
+		target     string
 		statusCode int
 	}{
 		{
 			name:       "Counter metric ok",
-			request:    "/update/counter/TestCounter/1",
+			target:     "/update/counter/TestCounter/1",
 			statusCode: http.StatusOK,
 		},
 		{
 			name:       "Counter metric invalid value",
-			request:    "/update/counter/TestCounter/none",
+			target:     "/update/counter/TestCounter/none",
 			statusCode: http.StatusBadRequest,
 		},
 		{
 			name:       "Counter without metric name",
-			request:    "/update/counter/",
+			target:     "/update/counter/",
 			statusCode: http.StatusNotFound,
 		},
 		{
 			name:       "Gauge metric ok",
-			request:    "/update/gauge/TestGauge/1.0",
+			target:     "/update/gauge/TestGauge/1.0",
 			statusCode: http.StatusOK,
 		},
 		{
 			name:       "Gauge metric invalid value",
-			request:    "/update/gauge/TestGauge/none",
+			target:     "/update/gauge/TestGauge/none",
 			statusCode: http.StatusBadRequest,
 		},
 		{
 			name:       "Gauge without metric name",
-			request:    "/update/gauge/",
+			target:     "/update/gauge/",
 			statusCode: http.StatusNotFound,
 		},
 		{
 			name:       "Unknown metric type",
-			request:    "/update/unknown/TestCounter/1",
+			target:     "/update/unknown/TestCounter/1",
 			statusCode: http.StatusNotImplemented,
 		},
 		{
 			name:       "Unknown method",
-			request:    "/unknown/counter/TestCounter/1",
+			target:     "/unknown/counter/TestCounter/1",
 			statusCode: http.StatusNotFound,
 		},
 	}
@@ -60,7 +60,7 @@ func TestHandler_PutMetric(t *testing.T) {
 		h := NewHandler()
 
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodPost, tt.request, nil)
+			request := httptest.NewRequest(http.MethodPost, tt.target, nil)
 			w := httptest.NewRecorder()
 
 			h.ServeHTTP(w, request)
@@ -165,4 +165,18 @@ func TestHandler_PutGetMetric(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHandler_GetAllMetric(t *testing.T) {
+	t.Run("Get All metrics", func(t *testing.T) {
+		request := httptest.NewRequest(http.MethodGet, "/", nil)
+		w := httptest.NewRecorder()
+
+		h := NewHandler()
+		h.ServeHTTP(w, request)
+
+		response := w.Result()
+		defer response.Body.Close()
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+	})
 }

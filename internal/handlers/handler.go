@@ -1,14 +1,20 @@
 package handlers
 
 import (
+	"embed"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
 )
+
+//go:embed index.html
+var fs embed.FS
 
 type Handler struct {
 	*chi.Mux
@@ -20,9 +26,31 @@ func NewHandler() *Handler {
 		Mux:     chi.NewMux(),
 		Storage: storage.NewStorage(),
 	}
-	h.Post("/update/{metricType}/{metricName}/{metricValue}", h.PutMetric())
+	h.Get("/", h.GetAllMetrics())
 	h.Get("/value/{metricType}/{metricName}", h.GetMetric())
+	h.Post("/update/{metricType}/{metricName}/{metricValue}", h.PutMetric())
 	return h
+}
+
+func (h *Handler) GetAllMetrics() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+		t, err := template.ParseFS(fs, "index.html")
+		if err != nil {
+			log.Warnln("Failed to parse index.html")
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		metrics := h.Storage.GetMetrics()
+		if err := t.Execute(w, metrics); err != nil {
+			log.Warnf("Failed to execute template: %v", err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func (h *Handler) GetMetric() http.HandlerFunc {

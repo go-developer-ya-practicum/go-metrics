@@ -2,17 +2,22 @@ package storage
 
 import "sync"
 
-type Storage struct {
-	sync.RWMutex
-
+type Metrics struct {
 	GaugeMetrics   map[string]float64
 	CounterMetrics map[string]int64
 }
 
+type Storage struct {
+	sync.RWMutex
+	Metrics
+}
+
 func NewStorage() *Storage {
 	return &Storage{
-		GaugeMetrics:   make(map[string]float64),
-		CounterMetrics: make(map[string]int64),
+		Metrics: Metrics{
+			GaugeMetrics:   make(map[string]float64),
+			CounterMetrics: make(map[string]int64),
+		},
 	}
 }
 
@@ -44,4 +49,10 @@ func (storage *Storage) GetCounter(name string) (value int64, ok bool) {
 	defer storage.RUnlock()
 	value, ok = storage.CounterMetrics[name]
 	return
+}
+
+func (storage *Storage) GetMetrics() Metrics {
+	storage.RLock()
+	defer storage.RUnlock()
+	return storage.Metrics
 }
