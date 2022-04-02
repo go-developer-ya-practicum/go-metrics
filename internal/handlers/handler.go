@@ -123,8 +123,6 @@ func (h *Handler) PutMetric() http.HandlerFunc {
 
 func (h *Handler) PutMetricJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-
 		if r.Header.Get("Content-Type") != "application/json" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -184,6 +182,7 @@ func (h *Handler) GetMetricJSON() http.HandlerFunc {
 			}
 		default:
 			w.WriteHeader(http.StatusNotImplemented)
+			return
 		}
 
 		if err = json.NewEncoder(w).Encode(metric); err != nil {
