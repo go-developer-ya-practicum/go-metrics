@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/handlers"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+
+	log "github.com/sirupsen/logrus"
+
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/handlers"
 )
 
 const address = "127.0.0.1:8080"

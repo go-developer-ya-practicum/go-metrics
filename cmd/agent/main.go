@@ -35,6 +35,7 @@ func main() {
 
 	reportTicker := time.NewTicker(reportInterval)
 	pollTicker := time.NewTicker(pollInterval)
+
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
@@ -43,8 +44,10 @@ func main() {
 		case <-pollTicker.C:
 			runtimeMetrics.Update()
 		case <-reportTicker.C:
-			url := fmt.Sprintf("http://%s/update/%s/%s/%d", address, "counter", "PollCount", runtimeMetrics.PollCount)
-			postMetric(url)
+			for name, value := range runtimeMetrics.CounterMetrics {
+				url := fmt.Sprintf("http://%s/update/%s/%s/%d", address, "counter", name, value)
+				postMetric(url)
+			}
 
 			for name, value := range runtimeMetrics.GaugeMetrics {
 				url := fmt.Sprintf("http://%s/update/%s/%s/%f", address, "gauge", name, value)

@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
 )
 
 type Handler struct {
