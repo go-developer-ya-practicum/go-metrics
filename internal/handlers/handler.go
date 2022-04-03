@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/middleware"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/types"
 )
@@ -29,6 +30,7 @@ func NewHandler(storage *storage.Storage) *Handler {
 		Mux:     chi.NewMux(),
 		Storage: storage,
 	}
+	h.Use(middleware.GZIPHandle)
 	h.Get("/", h.GetAllMetrics())
 	h.Get("/value/{metricType}/{metricName}", h.GetMetric())
 	h.Post("/update/{metricType}/{metricName}/{metricValue}", h.PutMetric())
