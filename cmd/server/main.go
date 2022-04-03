@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,14 +17,20 @@ import (
 )
 
 type Config struct {
-	Address       string        `env:"ADDRESS" envDefault:"127.0.0.1:8080"`
-	StoreFile     string        `env:"STORE_FILE" envDefault:"/tmp/devops-metrics-db.json"`
-	StoreInterval time.Duration `env:"STORE_INTERVAL" envDefault:"300s"`
-	Restore       bool          `env:"RESTORE" envDefault:"true"`
+	Address       string        `env:"ADDRESS"`
+	StoreFile     string        `env:"STORE_FILE"`
+	StoreInterval time.Duration `env:"STORE_INTERVAL"`
+	Restore       bool          `env:"RESTORE"`
 }
 
 func main() {
 	var config Config
+	flag.StringVar(&config.Address, "a", "127.0.0.1:8080", "Server Address")
+	flag.StringVar(&config.StoreFile, "f", "/tmp/devops-metrics-db.json", "Store File")
+	flag.DurationVar(&config.StoreInterval, "i", time.Second*300, "Store Interval")
+	flag.BoolVar(&config.Restore, "r", true, "Restore After Start")
+	flag.Parse()
+
 	if err := env.Parse(&config); err != nil {
 		log.Fatalf("Failed to parse server config, %v", err)
 	}

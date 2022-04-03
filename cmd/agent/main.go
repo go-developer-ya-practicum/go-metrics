@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -18,9 +19,9 @@ import (
 )
 
 type Config struct {
-	Address        string        `env:"ADDRESS" envDefault:"127.0.0.1:8080"`
-	PollInterval   time.Duration `env:"POLL_INTERVAL" envDefault:"2s"`
-	ReportInterval time.Duration `env:"REPORT_INTERVAL" envDefault:"10s"`
+	Address        string        `env:"ADDRESS"`
+	PollInterval   time.Duration `env:"POLL_INTERVAL"`
+	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
 }
 
 func postMetric(url string, metric types.Metrics) {
@@ -42,6 +43,12 @@ func postMetric(url string, metric types.Metrics) {
 
 func main() {
 	var config Config
+
+	flag.StringVar(&config.Address, "a", "127.0.0.1:8080", "Server address")
+	flag.DurationVar(&config.PollInterval, "p", time.Second*2, "Poll interval, sec")
+	flag.DurationVar(&config.ReportInterval, "r", time.Second*10, "Report interval, sec")
+	flag.Parse()
+
 	if err := env.Parse(&config); err != nil {
 		log.Fatalf("Failed to parse agent config, %v", err)
 	}
