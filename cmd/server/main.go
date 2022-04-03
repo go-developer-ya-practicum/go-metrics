@@ -7,18 +7,26 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/caarlos0/env/v6"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/handlers"
 )
 
-const address = "127.0.0.1:8080"
+type Config struct {
+	Address string `env:"ADDRESS" envDefault:"127.0.0.1:8080"`
+}
 
 func main() {
+	var config Config
+	if err := env.Parse(&config); err != nil {
+		log.Fatalf("Failed to parse server config, %v", err)
+	}
+
 	mux := http.NewServeMux()
 	mux.Handle("/", handlers.NewHandler())
 	server := &http.Server{
-		Addr:    address,
+		Addr:    config.Address,
 		Handler: mux,
 	}
 
