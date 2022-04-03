@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -96,7 +97,7 @@ func TestPutGetHandler(t *testing.T) {
 		},
 	}
 
-	h := NewHandler()
+	h := NewHandler(storage.NewStorage())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.target, nil)
@@ -121,7 +122,7 @@ func TestGetAllHandler(t *testing.T) {
 		request := httptest.NewRequest(http.MethodGet, "/", nil)
 		w := httptest.NewRecorder()
 
-		h := NewHandler()
+		h := NewHandler(storage.NewStorage())
 		h.ServeHTTP(w, request)
 
 		response := w.Result()
@@ -230,7 +231,7 @@ func TestPutGetJSONHandler(t *testing.T) {
 		},
 	}
 
-	h := NewHandler()
+	h := NewHandler(storage.NewStorage())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.target, strings.NewReader(tt.body))

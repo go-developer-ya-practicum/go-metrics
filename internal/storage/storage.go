@@ -1,6 +1,10 @@
 package storage
 
-import "sync"
+import (
+	"encoding/json"
+	"os"
+	"sync"
+)
 
 type Metrics struct {
 	GaugeMetrics   map[string]float64
@@ -55,4 +59,28 @@ func (storage *Storage) GetMetrics() Metrics {
 	storage.RLock()
 	defer storage.RUnlock()
 	return storage.Metrics
+}
+
+func (storage *Storage) Dump(storeFile string) error {
+	storage.RLock()
+	defer storage.RUnlock()
+
+	file, err := os.OpenFile(storeFile, os.O_WRONLY|os.O_CREATE, 0777)
+	if err != nil {
+		return err
+	}
+
+	return json.NewEncoder(file).Encode(storage.Metrics)
+}
+
+func (storage *Storage) Load(storeFile string) error {
+	storage.Lock()
+	defer storage.Unlock()
+
+	file, err := os.OpenFile(storeFile, os.O_RDONLY|os.O_CREATE, 0777)
+	if err != nil {
+		return err
+	}
+
+	return json.NewDecoder(file).Decode(&storage.Metrics)
 }

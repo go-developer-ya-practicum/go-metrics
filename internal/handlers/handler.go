@@ -24,10 +24,10 @@ type Handler struct {
 	Storage *storage.Storage
 }
 
-func NewHandler() *Handler {
+func NewHandler(storage *storage.Storage) *Handler {
 	h := &Handler{
 		Mux:     chi.NewMux(),
-		Storage: storage.NewStorage(),
+		Storage: storage,
 	}
 	h.Get("/", h.GetAllMetrics())
 	h.Get("/value/{metricType}/{metricName}", h.GetMetric())
