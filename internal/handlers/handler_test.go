@@ -1,17 +1,30 @@
 package handlers
 
 import (
+	"context"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
 )
+
+var storageConfig config.StorageConfig
+
+func init() {
+	storageConfig = config.StorageConfig{
+		StoreFile:     "tmp/storage.json",
+		StoreInterval: time.Second * 300,
+		Restore:       false,
+	}
+}
 
 func TestPutGetHandler(t *testing.T) {
 	type want struct {
@@ -98,7 +111,9 @@ func TestPutGetHandler(t *testing.T) {
 		},
 	}
 
-	h := NewHandler(storage.NewStorage(), "", nil)
+	s, err := storage.New(context.Background(), storageConfig)
+	require.NoError(t, err)
+	h := NewHandler(s, "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.target, nil)
@@ -123,7 +138,9 @@ func TestGetAllHandler(t *testing.T) {
 		request := httptest.NewRequest(http.MethodGet, "/", nil)
 		w := httptest.NewRecorder()
 
-		h := NewHandler(storage.NewStorage(), "", nil)
+		s, err := storage.New(context.Background(), storageConfig)
+		require.NoError(t, err)
+		h := NewHandler(s, "")
 		h.ServeHTTP(w, request)
 
 		response := w.Result()
@@ -232,7 +249,9 @@ func TestPutGetJSONHandler(t *testing.T) {
 		},
 	}
 
-	h := NewHandler(storage.NewStorage(), "", nil)
+	s, err := storage.New(context.Background(), storageConfig)
+	require.NoError(t, err)
+	h := NewHandler(s, "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.target, strings.NewReader(tt.body))

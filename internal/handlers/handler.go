@@ -1,19 +1,15 @@
 package handlers
 
 import (
-	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
+	"github.com/go-chi/chi/v5"
+	log "github.com/sirupsen/logrus"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"time"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v4"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/middleware"
@@ -25,17 +21,15 @@ var fs embed.FS
 
 type Handler struct {
 	*chi.Mux
-	Storage *storage.Storage
-	conn    *pgx.Conn
+	Storage storage.Storage
 	Key     string
 }
 
-func NewHandler(storage *storage.Storage, key string, conn *pgx.Conn) *Handler {
+func NewHandler(storage storage.Storage, key string) *Handler {
 	h := &Handler{
 		Mux:     chi.NewMux(),
 		Storage: storage,
 		Key:     key,
-		conn:    conn,
 	}
 	h.Use(middleware.GZIPHandle)
 	h.Get("/ping", h.PingDatabase())
@@ -49,15 +43,15 @@ func NewHandler(storage *storage.Storage, key string, conn *pgx.Conn) *Handler {
 
 func (h *Handler) PingDatabase() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if h.conn == nil {
+		s, ok := h.Storage.(*storage.DBStorage)
+		if !ok {
 			log.Warnln("Failed to connect to db")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-		defer cancel()
-		if err := h.conn.Ping(ctx); err != nil {
-			log.Warnln("Failed to ping db")
+
+		if err := s.Ping(); err != nil {
+			log.Warnf("Failed to ping db: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
