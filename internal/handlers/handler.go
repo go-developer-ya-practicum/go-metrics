@@ -23,12 +23,14 @@ var fs embed.FS
 type Handler struct {
 	*chi.Mux
 	Storage *storage.Storage
+	Key     string
 }
 
-func NewHandler(storage *storage.Storage) *Handler {
+func NewHandler(storage *storage.Storage, key string) *Handler {
 	h := &Handler{
 		Mux:     chi.NewMux(),
 		Storage: storage,
+		Key:     key,
 	}
 	h.Use(middleware.GZIPHandle)
 	h.Get("/", h.GetAllMetrics())
@@ -141,6 +143,19 @@ func (h *Handler) PutMetricJSON() http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		if h.Key != "" {
+			ok, err := metric.ValidateHash(h.Key)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				log.Warnf("Failed to validate hash: %v", err)
+				return
+			}
+			if !ok {
+				w.WriteHeader(http.StatusBadRequest)
+				log.Infof("Invalid hash: %v", metric)
+				return
+			}
+		}
 
 		if err := h.storeMetric(metric); err != nil {
 			w.WriteHeader(http.StatusNotImplemented)
@@ -191,6 +206,14 @@ func (h *Handler) GetMetricJSON() http.HandlerFunc {
 		default:
 			w.WriteHeader(http.StatusNotImplemented)
 			return
+		}
+
+		if h.Key != "" {
+			if err = metric.SetHash(h.Key); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				log.Warnf("Failed to set hash: %v", err)
+				return
+			}
 		}
 
 		if err = json.NewEncoder(w).Encode(metric); err != nil {

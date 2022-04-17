@@ -45,7 +45,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    cfg.Address,
-		Handler: handlers.NewHandler(metricsStorage),
+		Handler: handlers.NewHandler(metricsStorage, cfg.Key),
 	}
 
 	idle := make(chan struct{})

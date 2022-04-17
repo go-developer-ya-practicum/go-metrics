@@ -56,6 +56,11 @@ func main() {
 					MType: "counter",
 					Delta: &value,
 				}
+				if cfg.Key != "" {
+					if err := metric.SetHash(cfg.Key); err != nil {
+						log.Warnf("Failed to set hash: %v", err)
+					}
+				}
 				postMetric(url, metric)
 			}
 
@@ -64,6 +69,11 @@ func main() {
 					ID:    name,
 					MType: "gauge",
 					Value: &value,
+				}
+				if cfg.Key != "" {
+					if err := metric.SetHash(cfg.Key); err != nil {
+						log.Warnf("Failed to set hash: %v", err)
+					}
 				}
 				postMetric(url, metric)
 			}
