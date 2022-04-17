@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,18 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/caarlos0/env/v6"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/types"
 )
-
-type Config struct {
-	Address        string        `env:"ADDRESS"`
-	PollInterval   time.Duration `env:"POLL_INTERVAL"`
-	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
-}
 
 func postMetric(url string, metric types.Metrics) {
 	data, err := json.Marshal(metric)
@@ -42,21 +35,12 @@ func postMetric(url string, metric types.Metrics) {
 }
 
 func main() {
-	var config Config
-
-	flag.StringVar(&config.Address, "a", "127.0.0.1:8080", "Server address")
-	flag.DurationVar(&config.PollInterval, "p", time.Second*2, "Poll interval, sec")
-	flag.DurationVar(&config.ReportInterval, "r", time.Second*10, "Report interval, sec")
-	flag.Parse()
-
-	if err := env.Parse(&config); err != nil {
-		log.Fatalf("Failed to parse agent config, %v", err)
-	}
+	cfg := config.GetAgentConfig()
 
 	runtimeMetrics := metrics.NewMetrics()
 
-	reportTicker := time.NewTicker(config.ReportInterval)
-	pollTicker := time.NewTicker(config.PollInterval)
+	reportTicker := time.NewTicker(cfg.ReportInterval)
+	pollTicker := time.NewTicker(cfg.PollInterval)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
@@ -66,7 +50,7 @@ func main() {
 		case <-pollTicker.C:
 			runtimeMetrics.Update()
 		case <-reportTicker.C:
-			url := fmt.Sprintf("http://%s/update/", config.Address)
+			url := fmt.Sprintf("http://%s/update/", cfg.Address)
 			for name, value := range runtimeMetrics.CounterMetrics {
 				metric := types.Metrics{
 					ID:    name,

@@ -2,42 +2,25 @@ package main
 
 import (
 	"context"
-	"flag"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/caarlos0/env/v6"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/handlers"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
 )
 
-type Config struct {
-	Address       string        `env:"ADDRESS"`
-	StoreFile     string        `env:"STORE_FILE"`
-	StoreInterval time.Duration `env:"STORE_INTERVAL"`
-	Restore       bool          `env:"RESTORE"`
-}
-
 func main() {
-	var config Config
-	flag.StringVar(&config.Address, "a", "127.0.0.1:8080", "Server Address")
-	flag.StringVar(&config.StoreFile, "f", "/tmp/devops-metrics-db.json", "Store File")
-	flag.DurationVar(&config.StoreInterval, "i", time.Second*300, "Store Interval")
-	flag.BoolVar(&config.Restore, "r", true, "Restore After Start")
-	flag.Parse()
-
-	if err := env.Parse(&config); err != nil {
-		log.Fatalf("Failed to parse server config, %v", err)
-	}
+	cfg := config.GetServerConfig()
 
 	metricsStorage := storage.NewStorage()
-	if config.Restore {
-		if err := metricsStorage.Load(config.StoreFile); err != nil {
+	if cfg.Restore {
+		if err := metricsStorage.Load(cfg.StoreFile); err != nil {
 			log.Warnf("Failed to load metrics storage: %v", err)
 		}
 	}
@@ -45,11 +28,11 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func(ctx context.Context) {
-		storeTicker := time.NewTicker(config.StoreInterval)
+		storeTicker := time.NewTicker(cfg.StoreInterval)
 		for {
 			select {
 			case <-storeTicker.C:
-				if err := metricsStorage.Dump(config.StoreFile); err != nil {
+				if err := metricsStorage.Dump(cfg.StoreFile); err != nil {
 					log.Warnf("Failed to dump metrics storage: %v", err)
 				} else {
 					log.Infoln("Dump server metrics")
@@ -61,7 +44,7 @@ func main() {
 	}(ctx)
 
 	server := &http.Server{
-		Addr:    config.Address,
+		Addr:    cfg.Address,
 		Handler: handlers.NewHandler(metricsStorage),
 	}
 
