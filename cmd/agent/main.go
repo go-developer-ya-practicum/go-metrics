@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,17 +12,18 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
 )
 
-const (
-	address        = "127.0.0.1:8080"
-	pollInterval   = 2 * time.Second
-	reportInterval = 10 * time.Second
-)
+func postMetric(url string, metric metrics.Metrics) {
+	data, err := json.Marshal(metric)
+	if err != nil {
+		log.Warnf("Failed to marshal metric")
+		return
+	}
 
-func postMetric(url string) {
-	response, err := http.Post(url, "text/plain", nil)
+	response, err := http.Post(url, "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		log.Warnf("Failed to post metric: %v", err)
 		return
@@ -31,24 +34,38 @@ func postMetric(url string) {
 }
 
 func main() {
-	runtimeMetrics := metrics.NewMetrics()
+	cfg := config.GetAgentConfig()
 
-	reportTicker := time.NewTicker(reportInterval)
-	pollTicker := time.NewTicker(pollInterval)
+	collector := metrics.NewCollector()
+
+	reportTicker := time.NewTicker(cfg.ReportInterval)
+	pollTicker := time.NewTicker(cfg.PollInterval)
+
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
 	for {
 		select {
 		case <-pollTicker.C:
-			runtimeMetrics.Update()
+			collector.Update()
 		case <-reportTicker.C:
-			url := fmt.Sprintf("http://%s/update/%s/%s/%d", address, "counter", "PollCount", runtimeMetrics.PollCount)
-			postMetric(url)
+			url := fmt.Sprintf("http://%s/update/", cfg.Address)
+			for name, value := range collector.CounterMetrics {
+				metric := metrics.Metrics{
+					ID:    name,
+					MType: "counter",
+					Delta: &value,
+				}
+				postMetric(url, metric)
+			}
 
-			for name, value := range runtimeMetrics.GaugeMetrics {
-				url := fmt.Sprintf("http://%s/update/%s/%s/%f", address, "gauge", name, value)
-				postMetric(url)
+			for name, value := range collector.GaugeMetrics {
+				metric := metrics.Metrics{
+					ID:    name,
+					MType: "gauge",
+					Value: &value,
+				}
+				postMetric(url, metric)
 			}
 		case <-sig:
 			return

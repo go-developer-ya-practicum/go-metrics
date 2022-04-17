@@ -2,22 +2,50 @@ package main
 
 import (
 	"context"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/handlers"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/handlers"
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
 )
 
-const address = "127.0.0.1:8080"
-
 func main() {
-	mux := http.NewServeMux()
-	mux.Handle("/", handlers.NewHandler())
+	cfg := config.GetServerConfig()
+
+	metricsStorage := storage.NewStorage()
+	if cfg.Restore {
+		if err := metricsStorage.Load(cfg.StoreFile); err != nil {
+			log.Warnf("Failed to load metrics storage: %v", err)
+		}
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func(ctx context.Context) {
+		storeTicker := time.NewTicker(cfg.StoreInterval)
+		for {
+			select {
+			case <-storeTicker.C:
+				if err := metricsStorage.Dump(cfg.StoreFile); err != nil {
+					log.Warnf("Failed to dump metrics storage: %v", err)
+				} else {
+					log.Infoln("Dump server metrics")
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}(ctx)
+
 	server := &http.Server{
-		Addr:    address,
-		Handler: mux,
+		Addr:    cfg.Address,
+		Handler: handlers.NewHandler(metricsStorage),
 	}
 
 	idle := make(chan struct{})

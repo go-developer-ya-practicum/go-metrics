@@ -1,6 +1,10 @@
 package storage
 
-import "sync"
+import (
+	"encoding/json"
+	"os"
+	"sync"
+)
 
 type Storage struct {
 	sync.RWMutex
@@ -44,4 +48,40 @@ func (storage *Storage) GetCounter(name string) (value int64, ok bool) {
 	defer storage.RUnlock()
 	value, ok = storage.CounterMetrics[name]
 	return
+}
+
+func (storage *Storage) GetGaugeMetrics() map[string]float64 {
+	storage.RLock()
+	defer storage.RUnlock()
+	return storage.GaugeMetrics
+}
+
+func (storage *Storage) GetCounterMetrics() map[string]int64 {
+	storage.RLock()
+	defer storage.RUnlock()
+	return storage.CounterMetrics
+}
+
+func (storage *Storage) Dump(storeFile string) error {
+	storage.RLock()
+	defer storage.RUnlock()
+
+	file, err := os.OpenFile(storeFile, os.O_WRONLY|os.O_CREATE, 0777)
+	if err != nil {
+		return err
+	}
+
+	return json.NewEncoder(file).Encode(storage)
+}
+
+func (storage *Storage) Load(storeFile string) error {
+	storage.Lock()
+	defer storage.Unlock()
+
+	file, err := os.OpenFile(storeFile, os.O_RDONLY|os.O_CREATE, 0777)
+	if err != nil {
+		return err
+	}
+
+	return json.NewDecoder(file).Decode(&storage)
 }

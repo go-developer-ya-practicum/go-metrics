@@ -5,20 +5,24 @@ import (
 	"runtime"
 )
 
-type Metrics struct {
-	GaugeMetrics map[string]float64
-	PollCount    int64
+type Collector struct {
+	GaugeMetrics   map[string]float64
+	CounterMetrics map[string]int64
 }
 
-func NewMetrics() *Metrics {
-	return &Metrics{
+func NewCollector() *Collector {
+	return &Collector{
 		GaugeMetrics: make(map[string]float64),
-		PollCount:    0,
+		CounterMetrics: map[string]int64{
+			"PollCount": 0,
+		},
 	}
 }
 
-func (metrics *Metrics) Update() {
-	metrics.PollCount += 1
+func (metrics *Collector) Update() {
+	for metricName := range metrics.CounterMetrics {
+		metrics.CounterMetrics[metricName] += 1
+	}
 
 	memStats := &runtime.MemStats{}
 	runtime.ReadMemStats(memStats)

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Runtime metrics</title>
+</head>
+<body>
+  <header>
+      <h1>List of stored metrics</h1>
+      <table>
+          <tr>
+              <th>MetricName</th>
+              <th>MetricValue</th>
+          </tr>
+          {{range $metricName, $metricValue := .GaugeMetrics}}
+          <tr>
+              <td>{{$metricName}}</td>
+              <td>{{$metricValue}}</td>
+          </tr>
+          {{end}}
+
+          {{range $metricName, $metricValue := .CounterMetrics}}
+          <tr>
+              <td>{{$metricName}}</td>
+              <td>{{$metricValue}}</td>
+          </tr>
+          {{end}}
+      </table>
+  </header>
+</body>
+</html>
