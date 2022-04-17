@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -8,8 +9,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v4"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
@@ -23,22 +26,43 @@ var fs embed.FS
 type Handler struct {
 	*chi.Mux
 	Storage *storage.Storage
+	conn    *pgx.Conn
 	Key     string
 }
 
-func NewHandler(storage *storage.Storage, key string) *Handler {
+func NewHandler(storage *storage.Storage, key string, conn *pgx.Conn) *Handler {
 	h := &Handler{
 		Mux:     chi.NewMux(),
 		Storage: storage,
 		Key:     key,
+		conn:    conn,
 	}
 	h.Use(middleware.GZIPHandle)
+	h.Get("/ping", h.PingDatabase())
 	h.Get("/", h.GetAllMetrics())
 	h.Get("/value/{metricType}/{metricName}", h.GetMetric())
 	h.Post("/update/{metricType}/{metricName}/{metricValue}", h.PutMetric())
 	h.Post("/update/", h.PutMetricJSON())
 	h.Post("/value/", h.GetMetricJSON())
 	return h
+}
+
+func (h *Handler) PingDatabase() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if h.conn == nil {
+			log.Warnln("Failed to connect to db")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		if err := h.conn.Ping(ctx); err != nil {
+			log.Warnln("Failed to ping db")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func (h *Handler) GetAllMetrics() http.HandlerFunc {

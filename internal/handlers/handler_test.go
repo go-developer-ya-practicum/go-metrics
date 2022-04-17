@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
 )
 
 func TestPutGetHandler(t *testing.T) {
@@ -97,7 +98,7 @@ func TestPutGetHandler(t *testing.T) {
 		},
 	}
 
-	h := NewHandler(storage.NewStorage(), "")
+	h := NewHandler(storage.NewStorage(), "", nil)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.target, nil)
@@ -122,7 +123,7 @@ func TestGetAllHandler(t *testing.T) {
 		request := httptest.NewRequest(http.MethodGet, "/", nil)
 		w := httptest.NewRecorder()
 
-		h := NewHandler(storage.NewStorage(), "")
+		h := NewHandler(storage.NewStorage(), "", nil)
 		h.ServeHTTP(w, request)
 
 		response := w.Result()
@@ -231,7 +232,7 @@ func TestPutGetJSONHandler(t *testing.T) {
 		},
 	}
 
-	h := NewHandler(storage.NewStorage(), "")
+	h := NewHandler(storage.NewStorage(), "", nil)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.target, strings.NewReader(tt.body))

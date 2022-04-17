@@ -21,6 +21,7 @@ type ServerConfig struct {
 	StoreInterval time.Duration `env:"STORE_INTERVAL"`
 	Restore       bool          `env:"RESTORE"`
 	Key           string        `env:"KEY"`
+	DatabaseDNS   string        `env:"DATABASE_DSN"`
 }
 
 func GetAgentConfig() AgentConfig {
@@ -46,6 +47,7 @@ func GetServerConfig() ServerConfig {
 	flag.DurationVar(&config.StoreInterval, "i", time.Second*300, "Store Interval")
 	flag.BoolVar(&config.Restore, "r", true, "Restore After Start")
 	flag.StringVar(&config.Key, "k", "", "HMAC key")
+	flag.StringVar(&config.DatabaseDNS, "d", "", "Database DNS")
 	flag.Parse()
 
 	if err := env.Parse(&config); err != nil {

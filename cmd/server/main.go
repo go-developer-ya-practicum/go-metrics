@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v4"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
@@ -24,6 +25,16 @@ func main() {
 			log.Warnf("Failed to load metrics storage: %v", err)
 		}
 	}
+
+	var conn *pgx.Conn
+	if cfg.DatabaseDNS != "" {
+		var err error
+		conn, err = pgx.Connect(context.Background(), cfg.DatabaseDNS)
+		if err != nil {
+			log.Fatalf("Failed to connect to db: %v", err)
+		}
+	}
+	defer conn.Close(context.Background())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -45,7 +56,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    cfg.Address,
-		Handler: handlers.NewHandler(metricsStorage, cfg.Key),
+		Handler: handlers.NewHandler(metricsStorage, cfg.Key, conn),
 	}
 
 	idle := make(chan struct{})
