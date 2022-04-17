@@ -1,4 +1,4 @@
-package types
+package metrics
 
 type Metrics struct {
 	ID    string   `json:"id"`

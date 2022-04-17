@@ -14,10 +14,9 @@ import (
 
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/types"
 )
 
-func postMetric(url string, metric types.Metrics) {
+func postMetric(url string, metric metrics.Metrics) {
 	data, err := json.Marshal(metric)
 	if err != nil {
 		log.Warnf("Failed to marshal metric")
@@ -37,7 +36,7 @@ func postMetric(url string, metric types.Metrics) {
 func main() {
 	cfg := config.GetAgentConfig()
 
-	runtimeMetrics := metrics.NewMetrics()
+	collector := metrics.NewCollector()
 
 	reportTicker := time.NewTicker(cfg.ReportInterval)
 	pollTicker := time.NewTicker(cfg.PollInterval)
@@ -48,11 +47,11 @@ func main() {
 	for {
 		select {
 		case <-pollTicker.C:
-			runtimeMetrics.Update()
+			collector.Update()
 		case <-reportTicker.C:
 			url := fmt.Sprintf("http://%s/update/", cfg.Address)
-			for name, value := range runtimeMetrics.CounterMetrics {
-				metric := types.Metrics{
+			for name, value := range collector.CounterMetrics {
+				metric := metrics.Metrics{
 					ID:    name,
 					MType: "counter",
 					Delta: &value,
@@ -60,8 +59,8 @@ func main() {
 				postMetric(url, metric)
 			}
 
-			for name, value := range runtimeMetrics.GaugeMetrics {
-				metric := types.Metrics{
+			for name, value := range collector.GaugeMetrics {
+				metric := metrics.Metrics{
 					ID:    name,
 					MType: "gauge",
 					Value: &value,

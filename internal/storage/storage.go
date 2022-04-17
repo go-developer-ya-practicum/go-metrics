@@ -6,22 +6,17 @@ import (
 	"sync"
 )
 
-type Metrics struct {
+type Storage struct {
+	sync.RWMutex
+
 	GaugeMetrics   map[string]float64
 	CounterMetrics map[string]int64
 }
 
-type Storage struct {
-	sync.RWMutex
-	Metrics
-}
-
 func NewStorage() *Storage {
 	return &Storage{
-		Metrics: Metrics{
-			GaugeMetrics:   make(map[string]float64),
-			CounterMetrics: make(map[string]int64),
-		},
+		GaugeMetrics:   make(map[string]float64),
+		CounterMetrics: make(map[string]int64),
 	}
 }
 
@@ -55,10 +50,16 @@ func (storage *Storage) GetCounter(name string) (value int64, ok bool) {
 	return
 }
 
-func (storage *Storage) GetMetrics() Metrics {
+func (storage *Storage) GetGaugeMetrics() map[string]float64 {
 	storage.RLock()
 	defer storage.RUnlock()
-	return storage.Metrics
+	return storage.GaugeMetrics
+}
+
+func (storage *Storage) GetCounterMetrics() map[string]int64 {
+	storage.RLock()
+	defer storage.RUnlock()
+	return storage.CounterMetrics
 }
 
 func (storage *Storage) Dump(storeFile string) error {
@@ -70,7 +71,7 @@ func (storage *Storage) Dump(storeFile string) error {
 		return err
 	}
 
-	return json.NewEncoder(file).Encode(storage.Metrics)
+	return json.NewEncoder(file).Encode(storage)
 }
 
 func (storage *Storage) Load(storeFile string) error {
@@ -82,5 +83,5 @@ func (storage *Storage) Load(storeFile string) error {
 		return err
 	}
 
-	return json.NewDecoder(file).Decode(&storage.Metrics)
+	return json.NewDecoder(file).Decode(&storage)
 }

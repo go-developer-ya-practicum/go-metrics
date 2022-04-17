@@ -5,13 +5,13 @@ import (
 	"runtime"
 )
 
-type Metrics struct {
+type Collector struct {
 	GaugeMetrics   map[string]float64
 	CounterMetrics map[string]int64
 }
 
-func NewMetrics() *Metrics {
-	return &Metrics{
+func NewCollector() *Collector {
+	return &Collector{
 		GaugeMetrics: make(map[string]float64),
 		CounterMetrics: map[string]int64{
 			"PollCount": 0,
@@ -19,7 +19,7 @@ func NewMetrics() *Metrics {
 	}
 }
 
-func (metrics *Metrics) Update() {
+func (metrics *Collector) Update() {
 	for metricName := range metrics.CounterMetrics {
 		metrics.CounterMetrics[metricName] += 1
 	}

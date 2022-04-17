@@ -12,9 +12,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/middleware"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/types"
 )
 
 //go:embed index.html
@@ -50,8 +50,14 @@ func (h *Handler) GetAllMetrics() http.HandlerFunc {
 			return
 		}
 
-		metrics := h.Storage.GetMetrics()
-		if err := t.Execute(w, metrics); err != nil {
+		data := struct {
+			GaugeMetrics   map[string]float64
+			CounterMetrics map[string]int64
+		}{
+			h.Storage.GetGaugeMetrics(),
+			h.Storage.GetCounterMetrics(),
+		}
+		if err := t.Execute(w, data); err != nil {
 			log.Warnf("Failed to execute template: %v", err)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -130,7 +136,7 @@ func (h *Handler) PutMetricJSON() http.HandlerFunc {
 			return
 		}
 
-		var metric types.Metrics
+		var metric metrics.Metrics
 		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -160,7 +166,7 @@ func (h *Handler) GetMetricJSON() http.HandlerFunc {
 			return
 		}
 
-		var metric types.Metrics
+		var metric metrics.Metrics
 		err = json.Unmarshal(body, &metric)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -195,7 +201,7 @@ func (h *Handler) GetMetricJSON() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) storeMetric(metric types.Metrics) error {
+func (h *Handler) storeMetric(metric metrics.Metrics) error {
 	switch metric.MType {
 	case "gauge":
 		if metric.Value == nil {
