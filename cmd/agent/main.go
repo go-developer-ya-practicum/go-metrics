@@ -16,23 +16,6 @@ import (
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
 )
 
-func postMetric(url string, metric metrics.Metrics) {
-	data, err := json.Marshal(metric)
-	if err != nil {
-		log.Warnf("Failed to marshal metric")
-		return
-	}
-
-	response, err := http.Post(url, "application/json", bytes.NewBuffer(data))
-	if err != nil {
-		log.Warnf("Failed to post metric: %v", err)
-		return
-	}
-	if err := response.Body.Close(); err != nil {
-		log.Warnf("Failed to close response body: %v", err)
-	}
-}
-
 func main() {
 	cfg := config.GetAgentConfig()
 
@@ -49,33 +32,49 @@ func main() {
 		case <-pollTicker.C:
 			collector.Update()
 		case <-reportTicker.C:
-			url := fmt.Sprintf("http://%s/update/", cfg.Address)
+			metricsBatch := make([]metrics.Metrics, 0)
 			for name, value := range collector.CounterMetrics {
 				metric := metrics.Metrics{
 					ID:    name,
 					MType: "counter",
-					Delta: &value,
+					Delta: new(int64),
 				}
+				*metric.Delta = value
 				if cfg.Key != "" {
 					if err := metric.SetHash(cfg.Key); err != nil {
 						log.Warnf("Failed to set hash: %v", err)
 					}
 				}
-				postMetric(url, metric)
+				metricsBatch = append(metricsBatch, metric)
 			}
-
 			for name, value := range collector.GaugeMetrics {
 				metric := metrics.Metrics{
 					ID:    name,
 					MType: "gauge",
-					Value: &value,
+					Value: new(float64),
 				}
+				*metric.Value = value
 				if cfg.Key != "" {
 					if err := metric.SetHash(cfg.Key); err != nil {
 						log.Warnf("Failed to set hash: %v", err)
 					}
 				}
-				postMetric(url, metric)
+				metricsBatch = append(metricsBatch, metric)
+			}
+
+			data, err := json.Marshal(metricsBatch)
+			if err != nil {
+				log.Warnf("Failed to marshal metrics")
+				continue
+			}
+			url := fmt.Sprintf("http://%s/updates/", cfg.Address)
+			response, err := http.Post(url, "application/json", bytes.NewBuffer(data))
+			if err != nil {
+				log.Warnf("Failed to post metric: %v", err)
+				continue
+			}
+			if err := response.Body.Close(); err != nil {
+				log.Warnf("Failed to close response body: %v", err)
 			}
 		case <-sig:
 			return

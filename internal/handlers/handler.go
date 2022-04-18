@@ -37,6 +37,7 @@ func NewHandler(storage storage.Storage, key string) *Handler {
 	h.Get("/value/{metricType}/{metricName}", h.GetMetric())
 	h.Post("/update/{metricType}/{metricName}/{metricValue}", h.PutMetric())
 	h.Post("/update/", h.PutMetricJSON())
+	h.Post("/updates/", h.PutMetricBatchJSON())
 	h.Post("/value/", h.GetMetricJSON())
 	return h
 }
@@ -180,6 +181,55 @@ func (h *Handler) PutMetricJSON() http.HandlerFunc {
 			return
 		}
 
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (h *Handler) PutMetricBatchJSON() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Content-Type") != "application/json" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var metricsBatch []metrics.Metrics
+		if err := json.NewDecoder(r.Body).Decode(&metricsBatch); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		for _, metric := range metricsBatch {
+			if h.Key != "" {
+				ok, err := metric.ValidateHash(h.Key)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					log.Warnf("Failed to validate hash: %v", err)
+					return
+				}
+				if !ok {
+					w.WriteHeader(http.StatusBadRequest)
+					log.Infof("Invalid hash: %v", metric)
+					return
+				}
+			}
+
+			switch metric.MType {
+			case "gauge":
+				if metric.Value == nil {
+					w.WriteHeader(http.StatusNotImplemented)
+					return
+				}
+				h.Storage.PutGauge(metric.ID, *metric.Value)
+			case "counter":
+				if metric.Delta == nil {
+					w.WriteHeader(http.StatusNotImplemented)
+					return
+				}
+				h.Storage.UpdateCounter(metric.ID, *metric.Delta)
+			default:
+				w.WriteHeader(http.StatusNotImplemented)
+				return
+			}
+		}
 		w.WriteHeader(http.StatusOK)
 	}
 }
