@@ -4,12 +4,13 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	log "github.com/sirupsen/logrus"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+
+	"github.com/go-chi/chi/v5"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/middleware"
@@ -93,7 +94,7 @@ func (h *Handler) GetMetric() http.HandlerFunc {
 		metricName := chi.URLParam(r, "metricName")
 
 		switch metricType {
-		case "gauge":
+		case metrics.GaugeType:
 			if value, ok := h.Storage.GetGauge(metricName); !ok {
 				w.WriteHeader(http.StatusNotFound)
 			} else {
@@ -101,7 +102,7 @@ func (h *Handler) GetMetric() http.HandlerFunc {
 				strValue := strconv.FormatFloat(value, 'f', -1, 64)
 				w.Write([]byte(strValue))
 			}
-		case "counter":
+		case metrics.CounterType:
 			if value, ok := h.Storage.GetCounter(metricName); !ok {
 				w.WriteHeader(http.StatusNotFound)
 			} else {
@@ -123,7 +124,7 @@ func (h *Handler) PutMetric() http.HandlerFunc {
 		metricValue := chi.URLParam(r, "metricValue")
 
 		switch metricType {
-		case "gauge":
+		case metrics.GaugeType:
 			value, err := strconv.ParseFloat(metricValue, 64)
 			if err != nil {
 				msg := fmt.Sprintf("Failed to parse gauge value '%s'", metricValue)
@@ -133,7 +134,7 @@ func (h *Handler) PutMetric() http.HandlerFunc {
 
 			w.WriteHeader(http.StatusOK)
 			h.Storage.PutGauge(metricName, value)
-		case "counter":
+		case metrics.CounterType:
 			value, err := strconv.ParseInt(metricValue, 10, 64)
 			if err != nil {
 				msg := fmt.Sprintf("Failed to parse counter value '%s'", metricValue)
@@ -157,13 +158,13 @@ func (h *Handler) PutMetricJSON() http.HandlerFunc {
 			return
 		}
 
-		var metric metrics.Metrics
+		var metric metrics.Metric
 		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		if h.Key != "" {
-			ok, err := metric.ValidateHash(h.Key)
+			ok, err := metrics.Validate(&metric, h.Key)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				log.Warnf("Failed to validate hash: %v", err)
@@ -192,14 +193,14 @@ func (h *Handler) PutMetricBatchJSON() http.HandlerFunc {
 			return
 		}
 
-		var metricsBatch []metrics.Metrics
+		var metricsBatch []metrics.Metric
 		if err := json.NewDecoder(r.Body).Decode(&metricsBatch); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		for _, metric := range metricsBatch {
 			if h.Key != "" {
-				ok, err := metric.ValidateHash(h.Key)
+				ok, err := metrics.Validate(&metric, h.Key)
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
 					log.Warnf("Failed to validate hash: %v", err)
@@ -213,13 +214,13 @@ func (h *Handler) PutMetricBatchJSON() http.HandlerFunc {
 			}
 
 			switch metric.MType {
-			case "gauge":
+			case metrics.GaugeType:
 				if metric.Value == nil {
 					w.WriteHeader(http.StatusNotImplemented)
 					return
 				}
 				h.Storage.PutGauge(metric.ID, *metric.Value)
-			case "counter":
+			case metrics.CounterType:
 				if metric.Delta == nil {
 					w.WriteHeader(http.StatusNotImplemented)
 					return
@@ -249,7 +250,7 @@ func (h *Handler) GetMetricJSON() http.HandlerFunc {
 			return
 		}
 
-		var metric metrics.Metrics
+		var metric metrics.Metric
 		err = json.Unmarshal(body, &metric)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -257,14 +258,14 @@ func (h *Handler) GetMetricJSON() http.HandlerFunc {
 		}
 
 		switch metric.MType {
-		case "gauge":
+		case metrics.GaugeType:
 			if value, ok := h.Storage.GetGauge(metric.ID); !ok {
 				w.WriteHeader(http.StatusNotFound)
 				return
 			} else {
 				metric.Value = &value
 			}
-		case "counter":
+		case metrics.CounterType:
 			if value, ok := h.Storage.GetCounter(metric.ID); !ok {
 				w.WriteHeader(http.StatusNotFound)
 				return
@@ -277,7 +278,7 @@ func (h *Handler) GetMetricJSON() http.HandlerFunc {
 		}
 
 		if h.Key != "" {
-			if err = metric.SetHash(h.Key); err != nil {
+			if err = metrics.Sign(&metric, h.Key); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				log.Warnf("Failed to set hash: %v", err)
 				return
@@ -292,15 +293,15 @@ func (h *Handler) GetMetricJSON() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) storeMetric(metric metrics.Metrics) error {
+func (h *Handler) storeMetric(metric metrics.Metric) error {
 	switch metric.MType {
-	case "gauge":
+	case metrics.GaugeType:
 		if metric.Value == nil {
 			return fmt.Errorf("empty '%s' metric value", metric.ID)
 		}
 		h.Storage.PutGauge(metric.ID, *metric.Value)
 		return nil
-	case "counter":
+	case metrics.CounterType:
 		if metric.Delta == nil {
 			return fmt.Errorf("empty '%s' metric value", metric.ID)
 		}

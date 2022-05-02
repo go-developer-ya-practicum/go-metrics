@@ -30,52 +30,35 @@ func main() {
 	for {
 		select {
 		case <-pollTicker.C:
-			collector.Update()
+			go collector.UpdateRuntimeMetrics()
+			go collector.UpdateUtilizationMetrics()
 		case <-reportTicker.C:
-			metricsBatch := make([]metrics.Metrics, 0)
-			for name, value := range collector.CounterMetrics {
-				metric := metrics.Metrics{
-					ID:    name,
-					MType: "counter",
-					Delta: new(int64),
-				}
-				*metric.Delta = value
+			go func() {
+				collection := collector.ListMetrics()
 				if cfg.Key != "" {
-					if err := metric.SetHash(cfg.Key); err != nil {
-						log.Warnf("Failed to set hash: %v", err)
+					for _, metric := range collection {
+						if err := metrics.Sign(metric, cfg.Key); err != nil {
+							log.Warnf("Failed to set hash: %v", err)
+						}
 					}
 				}
-				metricsBatch = append(metricsBatch, metric)
-			}
-			for name, value := range collector.GaugeMetrics {
-				metric := metrics.Metrics{
-					ID:    name,
-					MType: "gauge",
-					Value: new(float64),
-				}
-				*metric.Value = value
-				if cfg.Key != "" {
-					if err := metric.SetHash(cfg.Key); err != nil {
-						log.Warnf("Failed to set hash: %v", err)
-					}
-				}
-				metricsBatch = append(metricsBatch, metric)
-			}
 
-			data, err := json.Marshal(metricsBatch)
-			if err != nil {
-				log.Warnf("Failed to marshal metrics")
-				continue
-			}
-			url := fmt.Sprintf("http://%s/updates/", cfg.Address)
-			response, err := http.Post(url, "application/json", bytes.NewBuffer(data))
-			if err != nil {
-				log.Warnf("Failed to post metric: %v", err)
-				continue
-			}
-			if err := response.Body.Close(); err != nil {
-				log.Warnf("Failed to close response body: %v", err)
-			}
+				data, err := json.Marshal(collection)
+				if err != nil {
+					log.Warnf("Failed to marshal metrics")
+					return
+				}
+				url := fmt.Sprintf("http://%s/updates/", cfg.Address)
+				response, err := http.Post(url, "application/json", bytes.NewBuffer(data))
+				if err != nil {
+					log.Warnf("Failed to post metric: %v", err)
+					return
+				}
+				if err := response.Body.Close(); err != nil {
+					log.Warnf("Failed to close response body: %v", err)
+				}
+
+			}()
 		case <-sig:
 			return
 		}
