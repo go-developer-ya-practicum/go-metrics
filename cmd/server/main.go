@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -16,36 +15,19 @@ import (
 )
 
 func main() {
-	cfg := config.GetServerConfig()
-
-	metricsStorage := storage.NewStorage()
-	if cfg.Restore {
-		if err := metricsStorage.Load(cfg.StoreFile); err != nil {
-			log.Warnf("Failed to load metrics storage: %v", err)
-		}
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go func(ctx context.Context) {
-		storeTicker := time.NewTicker(cfg.StoreInterval)
-		for {
-			select {
-			case <-storeTicker.C:
-				if err := metricsStorage.Dump(cfg.StoreFile); err != nil {
-					log.Warnf("Failed to dump metrics storage: %v", err)
-				} else {
-					log.Infoln("Dump server metrics")
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-	}(ctx)
+
+	cfg := config.GetServerConfig()
+
+	metricsStorage, err := storage.New(ctx, cfg.StorageConfig)
+	if err != nil {
+		log.Fatalf("Failed to create storage: %v", err)
+	}
 
 	server := &http.Server{
 		Addr:    cfg.Address,
-		Handler: handlers.NewHandler(metricsStorage),
+		Handler: handlers.NewHandler(metricsStorage, cfg.Key),
 	}
 
 	idle := make(chan struct{})

@@ -4,13 +4,12 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"github.com/go-chi/chi/v5"
+	log "github.com/sirupsen/logrus"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"strconv"
-
-	"github.com/go-chi/chi/v5"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/middleware"
@@ -22,21 +21,43 @@ var fs embed.FS
 
 type Handler struct {
 	*chi.Mux
-	Storage *storage.Storage
+	Storage storage.Storage
+	Key     string
 }
 
-func NewHandler(storage *storage.Storage) *Handler {
+func NewHandler(storage storage.Storage, key string) *Handler {
 	h := &Handler{
 		Mux:     chi.NewMux(),
 		Storage: storage,
+		Key:     key,
 	}
 	h.Use(middleware.GZIPHandle)
+	h.Get("/ping", h.PingDatabase())
 	h.Get("/", h.GetAllMetrics())
 	h.Get("/value/{metricType}/{metricName}", h.GetMetric())
 	h.Post("/update/{metricType}/{metricName}/{metricValue}", h.PutMetric())
 	h.Post("/update/", h.PutMetricJSON())
+	h.Post("/updates/", h.PutMetricBatchJSON())
 	h.Post("/value/", h.GetMetricJSON())
 	return h
+}
+
+func (h *Handler) PingDatabase() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s, ok := h.Storage.(*storage.DBStorage)
+		if !ok {
+			log.Warnln("Failed to connect to db")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if err := s.Ping(); err != nil {
+			log.Warnf("Failed to ping db: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func (h *Handler) GetAllMetrics() http.HandlerFunc {
@@ -141,12 +162,74 @@ func (h *Handler) PutMetricJSON() http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		if h.Key != "" {
+			ok, err := metric.ValidateHash(h.Key)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				log.Warnf("Failed to validate hash: %v", err)
+				return
+			}
+			if !ok {
+				w.WriteHeader(http.StatusBadRequest)
+				log.Infof("Invalid hash: %v", metric)
+				return
+			}
+		}
 
 		if err := h.storeMetric(metric); err != nil {
 			w.WriteHeader(http.StatusNotImplemented)
 			return
 		}
 
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (h *Handler) PutMetricBatchJSON() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Content-Type") != "application/json" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var metricsBatch []metrics.Metrics
+		if err := json.NewDecoder(r.Body).Decode(&metricsBatch); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		for _, metric := range metricsBatch {
+			if h.Key != "" {
+				ok, err := metric.ValidateHash(h.Key)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					log.Warnf("Failed to validate hash: %v", err)
+					return
+				}
+				if !ok {
+					w.WriteHeader(http.StatusBadRequest)
+					log.Infof("Invalid hash: %v", metric)
+					return
+				}
+			}
+
+			switch metric.MType {
+			case "gauge":
+				if metric.Value == nil {
+					w.WriteHeader(http.StatusNotImplemented)
+					return
+				}
+				h.Storage.PutGauge(metric.ID, *metric.Value)
+			case "counter":
+				if metric.Delta == nil {
+					w.WriteHeader(http.StatusNotImplemented)
+					return
+				}
+				h.Storage.UpdateCounter(metric.ID, *metric.Delta)
+			default:
+				w.WriteHeader(http.StatusNotImplemented)
+				return
+			}
+		}
 		w.WriteHeader(http.StatusOK)
 	}
 }
@@ -191,6 +274,14 @@ func (h *Handler) GetMetricJSON() http.HandlerFunc {
 		default:
 			w.WriteHeader(http.StatusNotImplemented)
 			return
+		}
+
+		if h.Key != "" {
+			if err = metric.SetHash(h.Key); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				log.Warnf("Failed to set hash: %v", err)
+				return
+			}
 		}
 
 		if err = json.NewEncoder(w).Encode(metric); err != nil {
