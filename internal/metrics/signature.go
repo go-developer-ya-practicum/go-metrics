@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-func Sign(metric *Metric, key string) (err error) {
+func Sign(metric *Metric, key string) error {
 	h, err := computeHash(metric, key)
 	if err != nil {
 		return err

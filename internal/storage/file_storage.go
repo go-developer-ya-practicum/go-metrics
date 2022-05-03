@@ -7,22 +7,24 @@ import (
 	"sync"
 	"time"
 
+	"github.com/openlyinc/pointy"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
+	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
 )
 
 type FileStorage struct {
 	sync.RWMutex
 
-	GaugeMetrics   map[string]float64
-	CounterMetrics map[string]int64
+	Floats   map[string]float64
+	Integers map[string]int64
 }
 
 func newFileStorage(ctx context.Context, cfg config.StorageConfig) (Storage, error) {
 	storage := &FileStorage{
-		GaugeMetrics:   make(map[string]float64),
-		CounterMetrics: make(map[string]int64),
+		Floats:   make(map[string]float64),
+		Integers: make(map[string]int64),
 	}
 
 	if cfg.Restore {
@@ -50,46 +52,62 @@ func newFileStorage(ctx context.Context, cfg config.StorageConfig) (Storage, err
 	return storage, nil
 }
 
-func (s *FileStorage) PutGauge(name string, value float64) {
+func (s *FileStorage) Put(metric *metrics.Metric) error {
 	s.Lock()
 	defer s.Unlock()
-	s.GaugeMetrics[name] = value
-}
 
-func (s *FileStorage) UpdateCounter(name string, value int64) {
-	s.Lock()
-	defer s.Unlock()
-	if storedValue, ok := s.CounterMetrics[name]; ok {
-		s.CounterMetrics[name] = value + storedValue
-	} else {
-		s.CounterMetrics[name] = value
+	switch metric.MType {
+	case metrics.GaugeType:
+		if metric.Value == nil {
+			return ErrBadArgument
+		}
+		s.Floats[metric.ID] = *metric.Value
+	case metrics.CounterType:
+		if metric.Delta == nil {
+			return ErrBadArgument
+		}
+		s.Integers[metric.ID] += *metric.Delta
+	default:
+		return ErrUnknownMetricType
 	}
+	return nil
 }
 
-func (s *FileStorage) GetGauge(name string) (value float64, ok bool) {
+func (s *FileStorage) Get(metric *metrics.Metric) error {
 	s.RLock()
 	defer s.RUnlock()
-	value, ok = s.GaugeMetrics[name]
-	return
+
+	switch metric.MType {
+	case metrics.GaugeType:
+		value, ok := s.Floats[metric.ID]
+		if !ok {
+			return ErrNotFound
+		}
+		metric.Value = pointy.Float64(value)
+	case metrics.CounterType:
+		delta, ok := s.Integers[metric.ID]
+		if !ok {
+			return ErrNotFound
+		}
+		metric.Delta = pointy.Int64(delta)
+	default:
+		return ErrUnknownMetricType
+	}
+	return nil
 }
 
-func (s *FileStorage) GetCounter(name string) (value int64, ok bool) {
+func (s *FileStorage) List() ([]*metrics.Metric, error) {
 	s.RLock()
 	defer s.RUnlock()
-	value, ok = s.CounterMetrics[name]
-	return
-}
 
-func (s *FileStorage) GetGaugeMetrics() map[string]float64 {
-	s.RLock()
-	defer s.RUnlock()
-	return s.GaugeMetrics
-}
-
-func (s *FileStorage) GetCounterMetrics() map[string]int64 {
-	s.RLock()
-	defer s.RUnlock()
-	return s.CounterMetrics
+	result := make([]*metrics.Metric, 0)
+	for id, value := range s.Floats {
+		result = append(result, metrics.NewGauge(id, value))
+	}
+	for id, delta := range s.Integers {
+		result = append(result, metrics.NewCounter(id, delta))
+	}
+	return result, nil
 }
 
 func (s *FileStorage) dump(storeFile string) error {

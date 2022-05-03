@@ -25,10 +25,10 @@ func NewGauge(id string, value float64) *Metric {
 	}
 }
 
-func NewCounter(id string, value int64) *Metric {
+func NewCounter(id string, delta int64) *Metric {
 	return &Metric{
 		ID:    id,
 		MType: CounterType,
-		Delta: pointy.Int64(value),
+		Delta: pointy.Int64(delta),
 	}
 }
