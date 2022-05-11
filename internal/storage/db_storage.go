@@ -48,21 +48,21 @@ func newDBStorage(ctx context.Context, cfg config.StorageConfig) (Storage, error
 	return &DBStorage{db: conn}, nil
 }
 
-func (s *DBStorage) Ping() error {
+func (s *DBStorage) Ping(ctx context.Context) error {
 	if s.db == nil {
 		return fmt.Errorf("failed to connect to db")
 	}
-	return s.db.Ping(context.Background())
+	return s.db.Ping(ctx)
 }
 
-func (s *DBStorage) Put(metric *metrics.Metric) error {
+func (s *DBStorage) Put(ctx context.Context, metric *metrics.Metric) error {
 	switch metric.MType {
 	case metrics.CounterType:
 		if metric.Delta == nil {
 			return ErrBadArgument
 		}
 		_, err := s.db.Exec(
-			context.Background(),
+			ctx,
 			"INSERT INTO counter (name, value) "+
 				"VALUES ($1, $2) "+
 				"ON CONFLICT(name) DO UPDATE SET value = counter.value + $2;",
@@ -73,7 +73,7 @@ func (s *DBStorage) Put(metric *metrics.Metric) error {
 			return ErrBadArgument
 		}
 		_, err := s.db.Exec(
-			context.Background(),
+			ctx,
 			"INSERT INTO gauge (name, value) "+
 				"VALUES ($1, $2) "+
 				"ON CONFLICT(name) DO UPDATE SET value = $2;",
@@ -84,11 +84,11 @@ func (s *DBStorage) Put(metric *metrics.Metric) error {
 	}
 }
 
-func (s *DBStorage) Get(metric *metrics.Metric) error {
+func (s *DBStorage) Get(ctx context.Context, metric *metrics.Metric) error {
 	switch metric.MType {
 	case metrics.CounterType:
 		row := s.db.QueryRow(
-			context.Background(),
+			ctx,
 			"SELECT value FROM counter WHERE name=$1;",
 			metric.ID)
 
@@ -101,7 +101,7 @@ func (s *DBStorage) Get(metric *metrics.Metric) error {
 		}
 	case metrics.GaugeType:
 		row := s.db.QueryRow(
-			context.Background(),
+			ctx,
 			"SELECT value FROM gauge WHERE name=$1;",
 			metric.ID)
 
@@ -117,7 +117,7 @@ func (s *DBStorage) Get(metric *metrics.Metric) error {
 	}
 }
 
-func (s *DBStorage) List() ([]*metrics.Metric, error) {
+func (s *DBStorage) List(ctx context.Context) ([]*metrics.Metric, error) {
 	result := make([]*metrics.Metric, 0)
 
 	var (
@@ -126,7 +126,7 @@ func (s *DBStorage) List() ([]*metrics.Metric, error) {
 		delta int64
 	)
 
-	rows, err := s.db.Query(context.Background(), "SELECT name, value FROM gauge")
+	rows, err := s.db.Query(ctx, "SELECT name, value FROM gauge")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query db: %v", err)
 	}
@@ -140,7 +140,7 @@ func (s *DBStorage) List() ([]*metrics.Metric, error) {
 		return nil, fmt.Errorf("failed to query db: %v", err)
 	}
 
-	rows, err = s.db.Query(context.Background(), "SELECT name, value FROM counter")
+	rows, err = s.db.Query(ctx, "SELECT name, value FROM counter")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query db: %v", err)
 	}

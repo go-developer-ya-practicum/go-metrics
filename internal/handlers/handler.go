@@ -52,7 +52,7 @@ func (h *Handler) PingDatabase() http.HandlerFunc {
 			return
 		}
 
-		if err := s.Ping(); err != nil {
+		if err := s.Ping(r.Context()); err != nil {
 			log.Warnf("Failed to ping db: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -72,7 +72,7 @@ func (h *Handler) GetAllMetrics() http.HandlerFunc {
 			return
 		}
 
-		m, err := h.Storage.List()
+		m, err := h.Storage.List(r.Context())
 		if err != nil {
 			log.Warnf("Failed to list metrics: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -95,7 +95,7 @@ func (h *Handler) GetMetric() http.HandlerFunc {
 			MType: chi.URLParam(r, "metricType"),
 		}
 
-		if err := h.Storage.Get(m); err != nil {
+		if err := h.Storage.Get(r.Context(), m); err != nil {
 			handleStorageError(w, err)
 			return
 		}
@@ -134,7 +134,7 @@ func (h *Handler) GetMetricJSON() http.HandlerFunc {
 			return
 		}
 
-		if err = h.Storage.Get(&m); err != nil {
+		if err = h.Storage.Get(r.Context(), &m); err != nil {
 			handleStorageError(w, err)
 			return
 		}
@@ -183,7 +183,7 @@ func (h *Handler) PutMetric() http.HandlerFunc {
 			return
 		}
 
-		if err := h.Storage.Put(m); err != nil {
+		if err := h.Storage.Put(r.Context(), m); err != nil {
 			handleStorageError(w, err)
 			return
 		}
@@ -217,7 +217,7 @@ func (h *Handler) PutMetricJSON() http.HandlerFunc {
 			}
 		}
 
-		if err := h.Storage.Put(&m); err != nil {
+		if err := h.Storage.Put(r.Context(), &m); err != nil {
 			handleStorageError(w, err)
 			return
 		}
@@ -252,7 +252,7 @@ func (h *Handler) PutMetricBatchJSON() http.HandlerFunc {
 				}
 			}
 
-			if err := h.Storage.Put(&m); err != nil {
+			if err := h.Storage.Put(r.Context(), &m); err != nil {
 				handleStorageError(w, err)
 				return
 			}

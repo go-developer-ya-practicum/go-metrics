@@ -65,7 +65,7 @@ func TestGet(t *testing.T) {
 				WithArgs(tt.m.ID).
 				WillReturnRows(mock.NewRows([]string{"value"}).AddRow(tt.target))
 
-			err = storage.Get(&tt.m)
+			err = storage.Get(context.Background(), &tt.m)
 			if tt.err == nil {
 				require.NoError(t, err)
 				require.NoError(t, mock.ExpectationsWereMet())
@@ -118,7 +118,7 @@ func TestList(t *testing.T) {
 
 	expected := append(gauges, counters...)
 
-	actual, err := storage.List()
+	actual, err := storage.List(context.Background())
 	require.NoError(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 	require.Equal(t, len(expected), len(actual))
@@ -190,7 +190,7 @@ func TestPut(t *testing.T) {
 			storage := &DBStorage{db: mock}
 
 			if tt.err != nil {
-				require.ErrorIs(t, tt.err, storage.Put(&tt.m))
+				require.ErrorIs(t, tt.err, storage.Put(context.Background(), &tt.m))
 			} else {
 				switch tt.m.MType {
 				case metrics.CounterType:
@@ -206,7 +206,7 @@ func TestPut(t *testing.T) {
 				default:
 					require.False(t, true)
 				}
-				err = storage.Put(&tt.m)
+				err = storage.Put(context.Background(), &tt.m)
 				require.NoError(t, err)
 				require.NoError(t, mock.ExpectationsWereMet())
 			}

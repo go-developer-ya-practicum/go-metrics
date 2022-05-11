@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -58,11 +59,13 @@ func main() {
 		address:   cfg.Address,
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	s := scheduler.New()
-	defer s.Stop()
-	s.Add(collector.UpdateRuntimeMetrics, cfg.PollInterval)
-	s.Add(collector.UpdateUtilizationMetrics, cfg.PollInterval)
-	s.Add(a.sendMetrics, cfg.ReportInterval)
+	s.Add(ctx, collector.UpdateRuntimeMetrics, cfg.PollInterval)
+	s.Add(ctx, collector.UpdateUtilizationMetrics, cfg.PollInterval)
+	s.Add(ctx, a.sendMetrics, cfg.ReportInterval)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
