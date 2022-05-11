@@ -3,11 +3,11 @@ module github.com/hikjik/go-musthave-devops-tpl.git
 go 1.17
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/caarlos0/env/v6 v6.9.1
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/jackc/pgx/v4 v4.16.0
 	github.com/openlyinc/pointy v1.1.2
-	github.com/pashagolub/pgxmock v1.5.0
 	github.com/shirou/gopsutil/v3 v3.22.4
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.1
@@ -23,7 +23,6 @@ require (
 	github.com/jackc/pgproto3/v2 v2.3.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/jackc/pgtype v1.11.0 // indirect
-	github.com/jackc/puddle v1.2.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect

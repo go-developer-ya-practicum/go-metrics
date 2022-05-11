@@ -2,37 +2,27 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
+	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/openlyinc/pointy"
 
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
 )
 
-type PgxInterface interface {
-	Begin(context.Context) (pgx.Tx, error)
-	Exec(context.Context, string, ...interface{}) (pgconn.CommandTag, error)
-	QueryRow(context.Context, string, ...interface{}) pgx.Row
-	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
-	Ping(context.Context) error
-	Prepare(context.Context, string, string) (*pgconn.StatementDescription, error)
-	Close(context.Context) error
-}
-
 type DBStorage struct {
-	db PgxInterface
+	db *sql.DB
 }
 
 func newDBStorage(ctx context.Context, cfg config.StorageConfig) (Storage, error) {
-	conn, err := pgx.Connect(ctx, cfg.DatabaseDNS)
+	db, err := sql.Open("pgx", cfg.DatabaseDNS)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = conn.Exec(ctx,
+	_, err = db.ExecContext(ctx,
 		`CREATE TABLE IF NOT EXISTS counter(
 		name VARCHAR(128) PRIMARY KEY UNIQUE NOT NULL,
 		value BIGINT NOT NULL
@@ -45,14 +35,14 @@ func newDBStorage(ctx context.Context, cfg config.StorageConfig) (Storage, error
 		return nil, err
 	}
 
-	return &DBStorage{db: conn}, nil
+	return &DBStorage{db: db}, nil
 }
 
 func (s *DBStorage) Ping(ctx context.Context) error {
 	if s.db == nil {
 		return fmt.Errorf("failed to connect to db")
 	}
-	return s.db.Ping(ctx)
+	return s.db.PingContext(ctx)
 }
 
 func (s *DBStorage) Put(ctx context.Context, metric *metrics.Metric) error {
@@ -61,7 +51,7 @@ func (s *DBStorage) Put(ctx context.Context, metric *metrics.Metric) error {
 		if metric.Delta == nil {
 			return ErrBadArgument
 		}
-		_, err := s.db.Exec(
+		_, err := s.db.ExecContext(
 			ctx,
 			"INSERT INTO counter (name, value) "+
 				"VALUES ($1, $2) "+
@@ -72,7 +62,7 @@ func (s *DBStorage) Put(ctx context.Context, metric *metrics.Metric) error {
 		if metric.Value == nil {
 			return ErrBadArgument
 		}
-		_, err := s.db.Exec(
+		_, err := s.db.ExecContext(
 			ctx,
 			"INSERT INTO gauge (name, value) "+
 				"VALUES ($1, $2) "+
@@ -87,7 +77,7 @@ func (s *DBStorage) Put(ctx context.Context, metric *metrics.Metric) error {
 func (s *DBStorage) Get(ctx context.Context, metric *metrics.Metric) error {
 	switch metric.MType {
 	case metrics.CounterType:
-		row := s.db.QueryRow(
+		row := s.db.QueryRowContext(
 			ctx,
 			"SELECT value FROM counter WHERE name=$1;",
 			metric.ID)
@@ -100,7 +90,7 @@ func (s *DBStorage) Get(ctx context.Context, metric *metrics.Metric) error {
 			return ErrNotFound
 		}
 	case metrics.GaugeType:
-		row := s.db.QueryRow(
+		row := s.db.QueryRowContext(
 			ctx,
 			"SELECT value FROM gauge WHERE name=$1;",
 			metric.ID)
@@ -126,7 +116,7 @@ func (s *DBStorage) List(ctx context.Context) ([]*metrics.Metric, error) {
 		delta int64
 	)
 
-	rows, err := s.db.Query(ctx, "SELECT name, value FROM gauge")
+	rows, err := s.db.QueryContext(ctx, "SELECT name, value FROM gauge")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query db: %v", err)
 	}
@@ -140,7 +130,7 @@ func (s *DBStorage) List(ctx context.Context) ([]*metrics.Metric, error) {
 		return nil, fmt.Errorf("failed to query db: %v", err)
 	}
 
-	rows, err = s.db.Query(ctx, "SELECT name, value FROM counter")
+	rows, err = s.db.QueryContext(ctx, "SELECT name, value FROM counter")
 	if err != nil {
 		return nil, fmt.Errorf("failed to query db: %v", err)
 	}
