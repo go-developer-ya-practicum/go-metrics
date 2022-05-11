@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/openlyinc/pointy"
-	"github.com/pashagolub/pgxmock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
@@ -55,17 +55,17 @@ func TestGet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mock, err := pgxmock.NewConn()
+			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
-			defer mock.Close(context.Background())
+			defer db.Close()
 
-			storage := &DBStorage{db: mock}
+			storage := &DBStorage{db: db}
 
 			mock.ExpectQuery(tt.sqlQuery).
 				WithArgs(tt.m.ID).
 				WillReturnRows(mock.NewRows([]string{"value"}).AddRow(tt.target))
 
-			err = storage.Get(&tt.m)
+			err = storage.Get(context.Background(), &tt.m)
 			if tt.err == nil {
 				require.NoError(t, err)
 				require.NoError(t, mock.ExpectationsWereMet())
@@ -87,11 +87,11 @@ func TestGet(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	mock, err := pgxmock.NewConn()
+	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer mock.Close(context.Background())
+	defer db.Close()
 
-	storage := &DBStorage{db: mock}
+	storage := &DBStorage{db: db}
 
 	gauges := []*metrics.Metric{
 		{ID: "RandomValue", MType: metrics.GaugeType, Value: pointy.Float64(1.0)},
@@ -118,7 +118,7 @@ func TestList(t *testing.T) {
 
 	expected := append(gauges, counters...)
 
-	actual, err := storage.List()
+	actual, err := storage.List(context.Background())
 	require.NoError(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 	require.Equal(t, len(expected), len(actual))
@@ -183,30 +183,30 @@ func TestPut(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mock, err := pgxmock.NewConn()
+			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
-			defer mock.Close(context.Background())
+			defer db.Close()
 
-			storage := &DBStorage{db: mock}
+			storage := &DBStorage{db: db}
 
 			if tt.err != nil {
-				require.ErrorIs(t, tt.err, storage.Put(&tt.m))
+				require.ErrorIs(t, tt.err, storage.Put(context.Background(), &tt.m))
 			} else {
 				switch tt.m.MType {
 				case metrics.CounterType:
 					require.NotNil(t, tt.m.Delta)
 					mock.ExpectExec(tt.sqlQuery).
 						WithArgs(tt.m.ID, *tt.m.Delta).
-						WillReturnResult(pgxmock.NewResult("INSERT", 1))
+						WillReturnResult(sqlmock.NewResult(1, 1))
 				case metrics.GaugeType:
 					require.NotNil(t, tt.m.Value)
 					mock.ExpectExec(tt.sqlQuery).
 						WithArgs(tt.m.ID, *tt.m.Value).
-						WillReturnResult(pgxmock.NewResult("INSERT", 1))
+						WillReturnResult(sqlmock.NewResult(1, 1))
 				default:
 					require.False(t, true)
 				}
-				err = storage.Put(&tt.m)
+				err = storage.Put(context.Background(), &tt.m)
 				require.NoError(t, err)
 				require.NoError(t, mock.ExpectationsWereMet())
 			}

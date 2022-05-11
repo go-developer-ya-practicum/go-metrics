@@ -52,7 +52,7 @@ func newFileStorage(ctx context.Context, cfg config.StorageConfig) (Storage, err
 	return storage, nil
 }
 
-func (s *FileStorage) Put(metric *metrics.Metric) error {
+func (s *FileStorage) Put(ctx context.Context, metric *metrics.Metric) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -73,7 +73,7 @@ func (s *FileStorage) Put(metric *metrics.Metric) error {
 	return nil
 }
 
-func (s *FileStorage) Get(metric *metrics.Metric) error {
+func (s *FileStorage) Get(ctx context.Context, metric *metrics.Metric) error {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -96,7 +96,7 @@ func (s *FileStorage) Get(metric *metrics.Metric) error {
 	return nil
 }
 
-func (s *FileStorage) List() ([]*metrics.Metric, error) {
+func (s *FileStorage) List(ctx context.Context) ([]*metrics.Metric, error) {
 	s.RLock()
 	defer s.RUnlock()
 

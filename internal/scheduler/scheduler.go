@@ -18,8 +18,8 @@ func New() *Scheduler {
 	}
 }
 
-func (s *Scheduler) Add(f func(), interval time.Duration) {
-	ctx, cancel := context.WithCancel(context.Background())
+func (s *Scheduler) Add(ctx context.Context, f func(), interval time.Duration) {
+	ctx, cancel := context.WithCancel(ctx)
 	s.cancellations = append(s.cancellations, cancel)
 
 	s.wg.Add(1)
