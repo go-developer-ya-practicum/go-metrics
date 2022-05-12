@@ -1,32 +1,43 @@
 package metrics
 
 import (
+	"fmt"
 	"math/rand"
 	"runtime"
+	"sync"
+
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
+	log "github.com/sirupsen/logrus"
 )
 
 type Collector struct {
-	GaugeMetrics   map[string]float64
-	CounterMetrics map[string]int64
+	muRuntime      sync.RWMutex
+	PollCount      int64
+	RuntimeMetrics map[string]float64
+
+	muUtilize          sync.RWMutex
+	UtilizationMetrics map[string]float64
 }
 
 func NewCollector() *Collector {
 	return &Collector{
-		GaugeMetrics: make(map[string]float64),
-		CounterMetrics: map[string]int64{
-			"PollCount": 0,
-		},
+		PollCount:      0,
+		RuntimeMetrics: make(map[string]float64),
+
+		UtilizationMetrics: make(map[string]float64),
 	}
 }
 
-func (metrics *Collector) Update() {
-	for metricName := range metrics.CounterMetrics {
-		metrics.CounterMetrics[metricName] += 1
-	}
+func (c *Collector) UpdateRuntimeMetrics() {
+	c.muRuntime.Lock()
+	defer c.muRuntime.Unlock()
+
+	c.PollCount += 1
 
 	memStats := &runtime.MemStats{}
 	runtime.ReadMemStats(memStats)
-	metrics.GaugeMetrics = map[string]float64{
+	c.RuntimeMetrics = map[string]float64{
 		"RandomValue":   rand.Float64(),
 		"GCCPUFraction": memStats.GCCPUFraction,
 		"Alloc":         float64(memStats.Alloc),
@@ -56,4 +67,49 @@ func (metrics *Collector) Update() {
 		"Sys":           float64(memStats.Sys),
 		"TotalAlloc":    float64(memStats.TotalAlloc),
 	}
+}
+
+func (c *Collector) UpdateUtilizationMetrics() {
+	c.muUtilize.Lock()
+	defer c.muUtilize.Unlock()
+
+	v, err := mem.VirtualMemory()
+	if err != nil {
+		log.Warnf("Failed to get memory stats: %v", err)
+		return
+	}
+
+	c.UtilizationMetrics = map[string]float64{
+		"TotalMemory": float64(v.Total),
+		"FreeMemory":  float64(v.Free),
+	}
+
+	usage, err := cpu.Percent(0, true)
+	if err != nil {
+		log.Warnf("Failed to get cpu stats: %v", err)
+		return
+	}
+	for i, value := range usage {
+		id := fmt.Sprintf("CPUutilization%d", i)
+		c.UtilizationMetrics[id] = value
+	}
+}
+
+func (c *Collector) ListMetrics() []*Metric {
+	metrics := make([]*Metric, 0)
+
+	c.muRuntime.RLock()
+	metrics = append(metrics, NewCounter("PollCount", c.PollCount))
+	for id, value := range c.RuntimeMetrics {
+		metrics = append(metrics, NewGauge(id, value))
+	}
+	c.muRuntime.RUnlock()
+
+	c.muUtilize.RLock()
+	for id, value := range c.UtilizationMetrics {
+		metrics = append(metrics, NewGauge(id, value))
+	}
+	c.muUtilize.RUnlock()
+
+	return metrics
 }

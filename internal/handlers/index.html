@@ -9,21 +9,20 @@
       <h1>List of stored metrics</h1>
       <table>
           <tr>
-              <th>MetricName</th>
-              <th>MetricValue</th>
+              <th>ID</th>
+              <th>Value</th>
           </tr>
-          {{range $metricName, $metricValue := .GaugeMetrics}}
-          <tr>
-              <td>{{$metricName}}</td>
-              <td>{{$metricValue}}</td>
-          </tr>
-          {{end}}
-
-          {{range $metricName, $metricValue := .CounterMetrics}}
-          <tr>
-              <td>{{$metricName}}</td>
-              <td>{{$metricValue}}</td>
-          </tr>
+          {{range $i, $metric := .}}
+              <tr>
+                  <td>{{$metric.ID}}</td>
+                  <td>
+                      {{if eq $metric.MType "counter"}}
+                          {{$metric.Delta}}
+                      {{else}}
+                          {{$metric.Value}}
+                      {{end}}
+                  </td>
+              </tr>
           {{end}}
       </table>
   </header>
