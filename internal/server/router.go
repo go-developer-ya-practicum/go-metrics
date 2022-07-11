@@ -7,6 +7,7 @@ import (
 	"github.com/hikjik/go-metrics/internal/storage"
 )
 
+// NewRouter регистрирует обработчики и возвращает роутер chi.Mux
 func NewRouter(storage storage.Storage, key string) *chi.Mux {
 	srv := &server{
 		Storage: storage,

@@ -7,6 +7,8 @@ import (
 	"fmt"
 )
 
+// Sign вычисляет подпись для метрики по алгоритму SHA256
+// и сохраняет в поле Hash значение полученного хеш-значения.
 func Sign(metric *Metric, key string) error {
 	h, err := computeHash(metric, key)
 	if err != nil {
@@ -17,6 +19,7 @@ func Sign(metric *Metric, key string) error {
 	return nil
 }
 
+// Validate проверяет валидность хеш-значения метрики
 func Validate(metric *Metric, key string) (bool, error) {
 	computed, err := computeHash(metric, key)
 	if err != nil {

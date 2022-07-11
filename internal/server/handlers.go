@@ -24,6 +24,7 @@ type server struct {
 	Key     string
 }
 
+// PingDatabase хендлер для проверки доступности базы данных
 func (s *server) PingDatabase() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		db, ok := s.Storage.(*storage.DBStorage)
@@ -42,6 +43,8 @@ func (s *server) PingDatabase() http.HandlerFunc {
 	}
 }
 
+// GetAllMetrics хендлер, возвращающий html-страницу
+// с информацией о всех сохраненных метриках
 func (s *server) GetAllMetrics() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -69,6 +72,8 @@ func (s *server) GetAllMetrics() http.HandlerFunc {
 	}
 }
 
+// GetMetric хендлер, возвращающий текущее значение запрашиваемой метрики в текстовом виде.
+// Параметры метрики передаются из URL параметрах запроса
 func (s *server) GetMetric() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := &metrics.Metric{
@@ -93,6 +98,8 @@ func (s *server) GetMetric() http.HandlerFunc {
 	}
 }
 
+// GetMetricJSON хендлер, возвращающий текущее значение запрашиваемой метрики.
+// Параметры метрики передаются в теле запроса в формате JSON
 func (s *server) GetMetricJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -137,6 +144,8 @@ func (s *server) GetMetricJSON() http.HandlerFunc {
 	}
 }
 
+// PutMetric хендлер принимает и сохраняет переданное значение метрики.
+// Параметры метрики передаются из URL параметрах запроса
 func (s *server) PutMetric() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricValue := chi.URLParam(r, "metricValue")
@@ -172,6 +181,8 @@ func (s *server) PutMetric() http.HandlerFunc {
 	}
 }
 
+// PutMetricJSON хендлер принимает и сохраняет переданное значение метрики.
+// Параметры метрики передаются в теле запроса в формате JSON
 func (s *server) PutMetricJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Content-Type") != "application/json" {
@@ -206,6 +217,8 @@ func (s *server) PutMetricJSON() http.HandlerFunc {
 	}
 }
 
+// PutMetricBatchJSON хендлер принимает и сохраняет переданные значения метрик.
+// Параметры метрик передаются в теле запроса в формате JSON
 func (s *server) PutMetricBatchJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Content-Type") != "application/json" {

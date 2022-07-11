@@ -11,6 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Collector собирает различные рантайм-метрики для их последующей отправки на сервер по протоколу HTTP.
+// В качестве источника метрик используются пакеты runtime и gopsutil.
 type Collector struct {
 	muRuntime      sync.RWMutex
 	PollCount      int64
@@ -20,6 +22,7 @@ type Collector struct {
 	UtilizationMetrics map[string]float64
 }
 
+// NewCollector создает экземпляр Collector
 func NewCollector() *Collector {
 	return &Collector{
 		PollCount:      0,
@@ -29,6 +32,8 @@ func NewCollector() *Collector {
 	}
 }
 
+// UpdateRuntimeMetrics обновляет значения метрик RuntimeMetrics, используя пакет runtime,
+// а также счетчика PollCount и метрики RandomValue.
 func (c *Collector) UpdateRuntimeMetrics() {
 	c.muRuntime.Lock()
 	defer c.muRuntime.Unlock()
@@ -69,6 +74,7 @@ func (c *Collector) UpdateRuntimeMetrics() {
 	}
 }
 
+// UpdateUtilizationMetrics обновляет значения метрик UtilizationMetrics, используя пакет gopsutil,
 func (c *Collector) UpdateUtilizationMetrics() {
 	c.muUtilize.Lock()
 	defer c.muUtilize.Unlock()
@@ -95,6 +101,7 @@ func (c *Collector) UpdateUtilizationMetrics() {
 	}
 }
 
+// ListMetrics возвращает список всех собранных значений метрик.
 func (c *Collector) ListMetrics() []*Metric {
 	metrics := make([]*Metric, 0)
 

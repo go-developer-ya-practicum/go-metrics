@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// AgentConfig содержит настройки агента по сбору метрик
 type AgentConfig struct {
 	Address        string        `env:"ADDRESS"`
 	PollInterval   time.Duration `env:"POLL_INTERVAL"`
@@ -15,6 +16,7 @@ type AgentConfig struct {
 	Key            string        `env:"KEY"`
 }
 
+// StorageConfig содержит настройки хранилища метрик
 type StorageConfig struct {
 	StoreFile     string        `env:"STORE_FILE"`
 	StoreInterval time.Duration `env:"STORE_INTERVAL"`
@@ -22,12 +24,14 @@ type StorageConfig struct {
 	DatabaseDNS   string        `env:"DATABASE_DSN"`
 }
 
+// ServerConfig содержит настройки сервера по сбору рантайм-метрик
 type ServerConfig struct {
 	Address       string `env:"ADDRESS"`
 	Key           string `env:"KEY"`
 	StorageConfig StorageConfig
 }
 
+// GetAgentConfig возвращает настройки AgentConfig
 func GetAgentConfig() AgentConfig {
 	var config AgentConfig
 
@@ -44,6 +48,7 @@ func GetAgentConfig() AgentConfig {
 	return config
 }
 
+// GetServerConfig возвращает настройки ServerConfig
 func GetServerConfig() ServerConfig {
 	var config ServerConfig
 

@@ -4,11 +4,13 @@ import (
 	"github.com/openlyinc/pointy"
 )
 
+// Возможные типы метрик
 const (
 	GaugeType   string = "gauge"
 	CounterType string = "counter"
 )
 
+// Metric содержит информацию о метрике
 type Metric struct {
 	ID    string   `json:"id"`
 	MType string   `json:"type"`
@@ -17,6 +19,7 @@ type Metric struct {
 	Hash  string   `json:"hash,omitempty"`
 }
 
+// NewGauge создает метрику типа GaugeType
 func NewGauge(id string, value float64) *Metric {
 	return &Metric{
 		ID:    id,
@@ -25,6 +28,7 @@ func NewGauge(id string, value float64) *Metric {
 	}
 }
 
+// NewCounter создает метрику типа CounterType
 func NewCounter(id string, delta int64) *Metric {
 	return &Metric{
 		ID:    id,

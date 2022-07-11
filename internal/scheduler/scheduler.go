@@ -6,11 +6,13 @@ import (
 	"time"
 )
 
+// Scheduler позволяет запускать задачи с определенной периодичностью.
 type Scheduler struct {
 	wg            *sync.WaitGroup
 	cancellations []context.CancelFunc
 }
 
+// New создает новый объект типа Scheduler.
 func New() *Scheduler {
 	return &Scheduler{
 		wg:            new(sync.WaitGroup),
@@ -18,6 +20,7 @@ func New() *Scheduler {
 	}
 }
 
+// Add осуществляет вызов переданной функции f с периодом interval.
 func (s *Scheduler) Add(ctx context.Context, f func(), interval time.Duration) {
 	ctx, cancel := context.WithCancel(ctx)
 	s.cancellations = append(s.cancellations, cancel)
@@ -38,6 +41,7 @@ func (s *Scheduler) Add(ctx context.Context, f func(), interval time.Duration) {
 	}()
 }
 
+// Stop останавливает все задачи.
 func (s *Scheduler) Stop() {
 	for _, cancel := range s.cancellations {
 		cancel()
