@@ -9,9 +9,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/handlers"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
+	"github.com/hikjik/go-metrics/internal/config"
+	"github.com/hikjik/go-metrics/internal/handlers"
+	"github.com/hikjik/go-metrics/internal/storage"
 )
 
 func main() {

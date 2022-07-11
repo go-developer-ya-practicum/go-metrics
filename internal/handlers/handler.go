@@ -12,9 +12,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/middleware"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
+	"github.com/hikjik/go-metrics/internal/metrics"
+	"github.com/hikjik/go-metrics/internal/middleware"
+	"github.com/hikjik/go-metrics/internal/storage"
 )
 
 //go:embed index.html

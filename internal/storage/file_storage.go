@@ -10,8 +10,8 @@ import (
 	"github.com/openlyinc/pointy"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
+	"github.com/hikjik/go-metrics/internal/config"
+	"github.com/hikjik/go-metrics/internal/metrics"
 )
 
 type FileStorage struct {

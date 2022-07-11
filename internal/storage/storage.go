@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
+	"github.com/hikjik/go-metrics/internal/config"
+	"github.com/hikjik/go-metrics/internal/metrics"
 )
 
 var ErrNotFound = errors.New("not found")

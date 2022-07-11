@@ -1,4 +1,4 @@
-module github.com/hikjik/go-musthave-devops-tpl.git
+module github.com/hikjik/go-metrics
 
 go 1.17
 

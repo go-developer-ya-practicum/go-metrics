@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/storage"
+	"github.com/hikjik/go-metrics/internal/config"
+	"github.com/hikjik/go-metrics/internal/storage"
 )
 
 var storageConfig config.StorageConfig

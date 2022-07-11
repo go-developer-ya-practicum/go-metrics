@@ -9,7 +9,7 @@ import (
 	"github.com/openlyinc/pointy"
 	"github.com/stretchr/testify/require"
 
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
+	"github.com/hikjik/go-metrics/internal/metrics"
 )
 
 func TestGet(t *testing.T) {

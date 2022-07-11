@@ -8,8 +8,8 @@ import (
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/openlyinc/pointy"
 
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/config"
-	"github.com/hikjik/go-musthave-devops-tpl.git/internal/metrics"
+	"github.com/hikjik/go-metrics/internal/config"
+	"github.com/hikjik/go-metrics/internal/metrics"
 )
 
 type DBStorage struct {
