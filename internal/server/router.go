@@ -9,7 +9,7 @@ import (
 
 // NewRouter регистрирует обработчики и возвращает роутер chi.Mux
 func NewRouter(storage storage.Storage, key string) *chi.Mux {
-	srv := &server{
+	srv := &Server{
 		Storage: storage,
 		Key:     key,
 	}
