@@ -1,4 +1,4 @@
-package handlers
+package server
 
 import (
 	"context"
@@ -113,12 +113,12 @@ func TestPutGetHandler(t *testing.T) {
 
 	s, err := storage.New(context.Background(), storageConfig)
 	require.NoError(t, err)
-	h := NewHandler(s, "")
+	router := NewRouter(s, "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.target, nil)
 			w := httptest.NewRecorder()
-			h.ServeHTTP(w, request)
+			router.ServeHTTP(w, request)
 
 			response := w.Result()
 			defer response.Body.Close()
@@ -140,8 +140,8 @@ func TestGetAllHandler(t *testing.T) {
 
 		s, err := storage.New(context.Background(), storageConfig)
 		require.NoError(t, err)
-		h := NewHandler(s, "")
-		h.ServeHTTP(w, request)
+		router := NewRouter(s, "")
+		router.ServeHTTP(w, request)
 
 		response := w.Result()
 		defer response.Body.Close()
@@ -251,13 +251,13 @@ func TestPutGetJSONHandler(t *testing.T) {
 
 	s, err := storage.New(context.Background(), storageConfig)
 	require.NoError(t, err)
-	h := NewHandler(s, "")
+	router := NewRouter(s, "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.target, strings.NewReader(tt.body))
 			request.Header.Add("Content-Type", tt.contentType)
 			w := httptest.NewRecorder()
-			h.ServeHTTP(w, request)
+			router.ServeHTTP(w, request)
 			response := w.Result()
 			defer response.Body.Close()
 

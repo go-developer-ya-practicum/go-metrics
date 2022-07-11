@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hikjik/go-metrics/internal/config"
-	"github.com/hikjik/go-metrics/internal/handlers"
+	"github.com/hikjik/go-metrics/internal/server"
 	"github.com/hikjik/go-metrics/internal/storage"
 )
 
@@ -25,9 +25,9 @@ func main() {
 		log.Fatalf("Failed to create storage: %v", err)
 	}
 
-	server := &http.Server{
+	srv := &http.Server{
 		Addr:    cfg.Address,
-		Handler: handlers.NewHandler(metricsStorage, cfg.Key),
+		Handler: server.NewRouter(metricsStorage, cfg.Key),
 	}
 
 	idle := make(chan struct{})
@@ -36,12 +36,12 @@ func main() {
 		signal.Notify(sig, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
 		<-sig
 
-		if err := server.Shutdown(context.Background()); err != nil {
+		if err = srv.Shutdown(context.Background()); err != nil {
 			log.Errorf("Failed to shutdown HTTP server: %v", err)
 		}
 		close(idle)
 	}()
-	if err := server.ListenAndServe(); err != http.ErrServerClosed {
+	if err = srv.ListenAndServe(); err != http.ErrServerClosed {
 		log.Errorf("HTTP server ListenAndServe: %v", err)
 	}
 	<-idle

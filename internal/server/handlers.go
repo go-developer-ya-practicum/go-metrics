@@ -1,4 +1,4 @@
-package handlers
+package server
 
 import (
 	"embed"
@@ -13,46 +13,27 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/hikjik/go-metrics/internal/metrics"
-	"github.com/hikjik/go-metrics/internal/middleware"
 	"github.com/hikjik/go-metrics/internal/storage"
 )
 
-//go:embed index.html
+//go:embed res
 var fs embed.FS
 
-type Handler struct {
-	*chi.Mux
+type server struct {
 	Storage storage.Storage
 	Key     string
 }
 
-func NewHandler(storage storage.Storage, key string) *Handler {
-	h := &Handler{
-		Mux:     chi.NewMux(),
-		Storage: storage,
-		Key:     key,
-	}
-	h.Use(middleware.GZIPHandle)
-	h.Get("/ping", h.PingDatabase())
-	h.Get("/", h.GetAllMetrics())
-	h.Get("/value/{metricType}/{metricName}", h.GetMetric())
-	h.Post("/update/{metricType}/{metricName}/{metricValue}", h.PutMetric())
-	h.Post("/update/", h.PutMetricJSON())
-	h.Post("/updates/", h.PutMetricBatchJSON())
-	h.Post("/value/", h.GetMetricJSON())
-	return h
-}
-
-func (h *Handler) PingDatabase() http.HandlerFunc {
+func (s *server) PingDatabase() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		s, ok := h.Storage.(*storage.DBStorage)
+		db, ok := s.Storage.(*storage.DBStorage)
 		if !ok {
 			log.Warnln("Failed to connect to db")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		if err := s.Ping(r.Context()); err != nil {
+		if err := db.Ping(r.Context()); err != nil {
 			log.Warnf("Failed to ping db: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -61,18 +42,18 @@ func (h *Handler) PingDatabase() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) GetAllMetrics() http.HandlerFunc {
+func (s *server) GetAllMetrics() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-		t, err := template.ParseFS(fs, "index.html")
+		t, err := template.ParseFS(fs, "res/index.html")
 		if err != nil {
 			log.Warnln("Failed to parse index.html")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		m, err := h.Storage.List(r.Context())
+		m, err := s.Storage.List(r.Context())
 		if err != nil {
 			log.Warnf("Failed to list metrics: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -88,14 +69,14 @@ func (h *Handler) GetAllMetrics() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) GetMetric() http.HandlerFunc {
+func (s *server) GetMetric() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := &metrics.Metric{
 			ID:    chi.URLParam(r, "metricName"),
 			MType: chi.URLParam(r, "metricType"),
 		}
 
-		if err := h.Storage.Get(r.Context(), m); err != nil {
+		if err := s.Storage.Get(r.Context(), m); err != nil {
 			handleStorageError(w, err)
 			return
 		}
@@ -112,7 +93,7 @@ func (h *Handler) GetMetric() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) GetMetricJSON() http.HandlerFunc {
+func (s *server) GetMetricJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -134,13 +115,13 @@ func (h *Handler) GetMetricJSON() http.HandlerFunc {
 			return
 		}
 
-		if err = h.Storage.Get(r.Context(), &m); err != nil {
+		if err = s.Storage.Get(r.Context(), &m); err != nil {
 			handleStorageError(w, err)
 			return
 		}
 
-		if h.Key != "" {
-			if err = metrics.Sign(&m, h.Key); err != nil {
+		if s.Key != "" {
+			if err = metrics.Sign(&m, s.Key); err != nil {
 				log.Warnf("Failed to set hash: %v", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -156,7 +137,7 @@ func (h *Handler) GetMetricJSON() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) PutMetric() http.HandlerFunc {
+func (s *server) PutMetric() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricValue := chi.URLParam(r, "metricValue")
 		metricName := chi.URLParam(r, "metricName")
@@ -183,7 +164,7 @@ func (h *Handler) PutMetric() http.HandlerFunc {
 			return
 		}
 
-		if err := h.Storage.Put(r.Context(), m); err != nil {
+		if err := s.Storage.Put(r.Context(), m); err != nil {
 			handleStorageError(w, err)
 			return
 		}
@@ -191,7 +172,7 @@ func (h *Handler) PutMetric() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) PutMetricJSON() http.HandlerFunc {
+func (s *server) PutMetricJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Content-Type") != "application/json" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -203,8 +184,8 @@ func (h *Handler) PutMetricJSON() http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if h.Key != "" {
-			ok, err := metrics.Validate(&m, h.Key)
+		if s.Key != "" {
+			ok, err := metrics.Validate(&m, s.Key)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				log.Warnf("Failed to validate hash: %v", err)
@@ -217,7 +198,7 @@ func (h *Handler) PutMetricJSON() http.HandlerFunc {
 			}
 		}
 
-		if err := h.Storage.Put(r.Context(), &m); err != nil {
+		if err := s.Storage.Put(r.Context(), &m); err != nil {
 			handleStorageError(w, err)
 			return
 		}
@@ -225,7 +206,7 @@ func (h *Handler) PutMetricJSON() http.HandlerFunc {
 	}
 }
 
-func (h *Handler) PutMetricBatchJSON() http.HandlerFunc {
+func (s *server) PutMetricBatchJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Content-Type") != "application/json" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -238,8 +219,8 @@ func (h *Handler) PutMetricBatchJSON() http.HandlerFunc {
 			return
 		}
 		for _, m := range metricsBatch {
-			if h.Key != "" {
-				ok, err := metrics.Validate(&m, h.Key)
+			if s.Key != "" {
+				ok, err := metrics.Validate(&m, s.Key)
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
 					log.Warnf("Failed to validate hash: %v", err)
@@ -252,7 +233,7 @@ func (h *Handler) PutMetricBatchJSON() http.HandlerFunc {
 				}
 			}
 
-			if err := h.Storage.Put(r.Context(), &m); err != nil {
+			if err := s.Storage.Put(r.Context(), &m); err != nil {
 				handleStorageError(w, err)
 				return
 			}
