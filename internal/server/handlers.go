@@ -140,7 +140,6 @@ func (s *Server) GetMetricJSON() http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		w.WriteHeader(http.StatusOK)
 	}
 }
 
