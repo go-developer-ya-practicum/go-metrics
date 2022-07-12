@@ -16,6 +16,7 @@ func NewRouter(storage storage.Storage, key string) *chi.Mux {
 
 	router := chi.NewRouter()
 	router.Use(middleware.Compress(5))
+	router.Mount("/debug", middleware.Profiler())
 	router.Get("/ping", srv.PingDatabase())
 	router.Get("/", srv.GetAllMetrics())
 	router.Get("/value/{metricType}/{metricName}", srv.GetMetric())
