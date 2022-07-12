@@ -21,7 +21,7 @@ var fs embed.FS
 
 type Server struct {
 	Storage storage.Storage
-	Key     string
+	Signer  *metrics.Signer
 }
 
 // PingDatabase хендлер для проверки доступности базы данных
@@ -127,8 +127,8 @@ func (s *Server) GetMetricJSON() http.HandlerFunc {
 			return
 		}
 
-		if s.Key != "" {
-			if err = metrics.Sign(&m, s.Key); err != nil {
+		if s.Signer != nil {
+			if err = s.Signer.Sign(&m); err != nil {
 				log.Warnf("Failed to set hash: %v", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -194,8 +194,8 @@ func (s *Server) PutMetricJSON() http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if s.Key != "" {
-			ok, err := metrics.Validate(&m, s.Key)
+		if s.Signer != nil {
+			ok, err := s.Signer.Validate(&m)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				log.Warnf("Failed to validate hash: %v", err)
@@ -231,8 +231,8 @@ func (s *Server) PutMetricBatchJSON() http.HandlerFunc {
 			return
 		}
 		for _, m := range metricsBatch {
-			if s.Key != "" {
-				ok, err := metrics.Validate(&m, s.Key)
+			if s.Signer != nil {
+				ok, err := s.Signer.Validate(&m)
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
 					log.Warnf("Failed to validate hash: %v", err)

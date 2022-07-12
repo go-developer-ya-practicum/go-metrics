@@ -4,6 +4,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/hikjik/go-metrics/internal/metrics"
 	"github.com/hikjik/go-metrics/internal/storage"
 )
 
@@ -11,7 +12,7 @@ import (
 func NewRouter(storage storage.Storage, key string) *chi.Mux {
 	srv := &Server{
 		Storage: storage,
-		Key:     key,
+		Signer:  metrics.NewSigner(key),
 	}
 
 	router := chi.NewRouter()

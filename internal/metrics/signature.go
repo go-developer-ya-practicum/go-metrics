@@ -7,10 +7,25 @@ import (
 	"fmt"
 )
 
+// Signer подписывает значения метрик с помощью алгоритма HMAC
+type Signer struct {
+	key []byte
+}
+
+// NewSigner возвращает новый Signer
+func NewSigner(key string) *Signer {
+	if key == "" {
+		return nil
+	}
+	return &Signer{
+		key: []byte(key),
+	}
+}
+
 // Sign вычисляет подпись для метрики по алгоритму SHA256
 // и сохраняет в поле Hash значение полученного хеш-значения.
-func Sign(metric *Metric, key string) error {
-	h, err := computeHash(metric, key)
+func (s *Signer) Sign(metric *Metric) error {
+	h, err := s.computeHash(metric)
 	if err != nil {
 		return err
 	}
@@ -20,8 +35,8 @@ func Sign(metric *Metric, key string) error {
 }
 
 // Validate проверяет валидность хеш-значения метрики
-func Validate(metric *Metric, key string) (bool, error) {
-	computed, err := computeHash(metric, key)
+func (s *Signer) Validate(metric *Metric) (bool, error) {
+	computed, err := s.computeHash(metric)
 	if err != nil {
 		return false, err
 	}
@@ -34,7 +49,7 @@ func Validate(metric *Metric, key string) (bool, error) {
 	return hmac.Equal(computed, decoded), nil
 }
 
-func computeHash(metric *Metric, key string) ([]byte, error) {
+func (s *Signer) computeHash(metric *Metric) ([]byte, error) {
 	var msg string
 	switch metric.MType {
 	case CounterType:
@@ -45,7 +60,7 @@ func computeHash(metric *Metric, key string) ([]byte, error) {
 		return nil, fmt.Errorf("unknown metric type")
 	}
 
-	h := hmac.New(sha256.New, []byte(key))
+	h := hmac.New(sha256.New, s.key)
 	h.Write([]byte(msg))
 	return h.Sum(nil), nil
 }
