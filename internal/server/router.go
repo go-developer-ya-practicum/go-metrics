@@ -2,8 +2,8 @@ package server
 
 import (
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/hikjik/go-metrics/internal/middleware"
 	"github.com/hikjik/go-metrics/internal/storage"
 )
 
@@ -15,7 +15,7 @@ func NewRouter(storage storage.Storage, key string) *chi.Mux {
 	}
 
 	router := chi.NewRouter()
-	router.Use(middleware.GZIPHandle)
+	router.Use(middleware.Compress(5))
 	router.Get("/ping", srv.PingDatabase())
 	router.Get("/", srv.GetAllMetrics())
 	router.Get("/value/{metricType}/{metricName}", srv.GetMetric())
