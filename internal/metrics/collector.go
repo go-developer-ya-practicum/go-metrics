@@ -6,9 +6,9 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/rs/zerolog/log"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
-	log "github.com/sirupsen/logrus"
 )
 
 // Collector собирает различные рантайм-метрики для их последующей отправки на сервер по протоколу HTTP.
@@ -81,7 +81,7 @@ func (c *Collector) UpdateUtilizationMetrics() {
 
 	v, err := mem.VirtualMemory()
 	if err != nil {
-		log.Warnf("Failed to get memory stats: %v", err)
+		log.Warn().Err(err).Msg("Failed to get memory stats")
 		return
 	}
 
@@ -92,7 +92,7 @@ func (c *Collector) UpdateUtilizationMetrics() {
 
 	usage, err := cpu.Percent(0, true)
 	if err != nil {
-		log.Warnf("Failed to get cpu stats: %v", err)
+		log.Warn().Err(err).Msg("Failed to get cpu stats")
 		return
 	}
 	for i, value := range usage {

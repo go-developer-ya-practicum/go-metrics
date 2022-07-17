@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/metrics"
 	"github.com/hikjik/go-metrics/internal/storage"
@@ -30,13 +30,13 @@ func (s *Server) PingDatabase() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		db, ok := s.Storage.(*storage.DBStorage)
 		if !ok {
-			log.Warnln("Failed to connect to db")
+			log.Warn().Msg("Failed to connect to db")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if err := db.Ping(r.Context()); err != nil {
-			log.Warnf("Failed to ping db: %v", err)
+			log.Warn().Err(err).Msg("Failed to ping db")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -52,19 +52,19 @@ func (s *Server) GetAllMetrics() http.HandlerFunc {
 
 		t, err := template.ParseFS(fs, "res/index.html")
 		if err != nil {
-			log.Warnln("Failed to parse index.html")
+			log.Warn().Err(err).Msg("Failed to parse index.html")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		m, err := s.Storage.List(r.Context())
 		if err != nil {
-			log.Warnf("Failed to list metrics: %v", err)
+			log.Warn().Err(err).Msg("Failed to list metrics")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		if err = t.Execute(w, m); err != nil {
-			log.Warnf("Failed to execute template: %v", err)
+			log.Warn().Err(err).Msg("Failed to execute template")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -96,7 +96,7 @@ func (s *Server) GetMetric() http.HandlerFunc {
 		}
 		w.WriteHeader(http.StatusOK)
 		if _, err := io.WriteString(w, str); err != nil {
-			log.Warnf("Write failed: %v", err)
+			log.Warn().Err(err).Msg("Write failed")
 		}
 	}
 }
@@ -132,14 +132,14 @@ func (s *Server) GetMetricJSON() http.HandlerFunc {
 
 		if s.Signer != nil {
 			if err = s.Signer.Sign(&m); err != nil {
-				log.Warnf("Failed to set hash: %v", err)
+				log.Warn().Err(err).Msg("Failed to set hash")
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 		}
 
 		if err = json.NewEncoder(w).Encode(m); err != nil {
-			log.Warnf("Failed to encode metric: %v", err)
+			log.Warn().Err(err).Msg("Failed to encode metric")
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -201,12 +201,12 @@ func (s *Server) PutMetricJSON() http.HandlerFunc {
 			ok, err := s.Signer.Validate(&m)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				log.Warnf("Failed to validate hash: %v", err)
+				log.Warn().Err(err).Msg("Failed to validate hash")
 				return
 			}
 			if !ok {
 				w.WriteHeader(http.StatusBadRequest)
-				log.Infof("Invalid hash: %v", m)
+				log.Info().Msgf("Invalid hash: %v", m)
 				return
 			}
 		}
@@ -238,12 +238,12 @@ func (s *Server) PutMetricBatchJSON() http.HandlerFunc {
 				ok, err := s.Signer.Validate(&m)
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
-					log.Warnf("Failed to validate hash: %v", err)
+					log.Warn().Err(err).Msg("Failed to validate hash")
 					return
 				}
 				if !ok {
 					w.WriteHeader(http.StatusBadRequest)
-					log.Infof("Invalid hash: %v", m)
+					log.Info().Msgf("Invalid hash: %v", m)
 					return
 				}
 			}
@@ -266,7 +266,7 @@ func handleStorageError(w http.ResponseWriter, err error) {
 	case storage.ErrNotFound:
 		w.WriteHeader(http.StatusNotFound)
 	default:
-		log.Warnf("Failed to put metric: %v", err)
+		log.Warn().Err(err).Msg("Failed to put metric")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }

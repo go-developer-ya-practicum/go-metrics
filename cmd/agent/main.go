@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/config"
 	"github.com/hikjik/go-metrics/internal/metrics"
@@ -28,24 +28,24 @@ func (a *agent) sendMetrics() {
 	if a.signer != nil {
 		for _, metric := range collection {
 			if err := a.signer.Sign(metric); err != nil {
-				log.Warnf("Failed to set hash: %v", err)
+				log.Warn().Err(err).Msg("Failed to set hash")
 			}
 		}
 	}
 
 	data, err := json.Marshal(collection)
 	if err != nil {
-		log.Warnf("Failed to marshal metrics")
+		log.Warn().Err(err).Msg("Failed to marshal metrics")
 		return
 	}
 	url := fmt.Sprintf("http://%s/updates/", a.address)
 	response, err := http.Post(url, "application/json", bytes.NewBuffer(data))
 	if err != nil {
-		log.Warnf("Failed to post metric: %v", err)
+		log.Warn().Err(err).Msg("Failed to post metric")
 		return
 	}
 	if err := response.Body.Close(); err != nil {
-		log.Warnf("Failed to close response body: %v", err)
+		log.Warn().Err(err).Msg("Failed to close response body")
 	}
 }
 

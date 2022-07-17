@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/metrics"
 	"github.com/hikjik/go-metrics/internal/storage"
@@ -17,7 +17,7 @@ import (
 func ExampleServer_PutMetricJSON() {
 	s, err := storage.New(context.Background(), storageConfig)
 	if err != nil {
-		log.Fatal("Failed to create storage")
+		log.Fatal().Msg("Failed to create storage")
 	}
 	router := NewRouter(s, "")
 
@@ -27,20 +27,20 @@ func ExampleServer_PutMetricJSON() {
 	metric := metrics.NewGauge("SomeMetric", 1.0)
 	var buf bytes.Buffer
 	if err = json.NewEncoder(&buf).Encode(metric); err != nil {
-		log.Fatal("Failed to encode metric")
+		log.Fatal().Msg("Failed to encode metric")
 	}
 
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/update/", &buf)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Failed to create request")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 	if err = resp.Body.Close(); err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 	fmt.Printf("Put request JSON: %s\n", resp.Status)
 
@@ -50,7 +50,7 @@ func ExampleServer_PutMetricJSON() {
 func ExampleServer_PutMetric() {
 	s, err := storage.New(context.Background(), storageConfig)
 	if err != nil {
-		log.Fatal("Failed to create storage")
+		log.Fatal().Msg("Failed to create storage")
 	}
 	router := NewRouter(s, "")
 
@@ -62,14 +62,14 @@ func ExampleServer_PutMetric() {
 	url := fmt.Sprintf("%s/update/gauge/%s/%f", srv.URL, metric.ID, *metric.Value)
 	req, err := http.NewRequest(http.MethodPost, url, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 	if err = resp.Body.Close(); err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 	fmt.Printf("Put request url-params: %s\n", resp.Status)
 
@@ -79,7 +79,7 @@ func ExampleServer_PutMetric() {
 func ExampleServer_GetMetricJSON() {
 	s, err := storage.New(context.Background(), storageConfig)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Msg("Failed to create storage")
 	}
 	router := NewRouter(s, "")
 
@@ -88,32 +88,32 @@ func ExampleServer_GetMetricJSON() {
 
 	metric := metrics.NewGauge("SomeMetric", 1.0)
 	if err = s.Put(context.Background(), metric); err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 	var buf bytes.Buffer
 	if err = json.NewEncoder(&buf).Encode(metric); err != nil {
-		log.Fatal("Failed to encode metric")
+		log.Fatal().Msg("Failed to encode metric")
 	}
 
 	req, err := http.NewRequest(http.MethodPost, srv.URL+"/value/", &buf)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 	fmt.Printf("Get request JSON: %s\n", resp.Status)
 
 	var m metrics.Metric
 	if err = json.NewDecoder(resp.Body).Decode(&m); err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 	fmt.Printf("Metric: %s %.2f\n", m.MType, *m.Value)
 
 	if err = resp.Body.Close(); err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 
 	// Output Get request JSON: 200 OK

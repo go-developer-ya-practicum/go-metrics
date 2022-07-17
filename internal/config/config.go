@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v6"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 )
 
 // AgentConfig содержит настройки агента по сбору метрик
@@ -42,7 +42,7 @@ func GetAgentConfig() AgentConfig {
 	flag.Parse()
 
 	if err := env.Parse(&config); err != nil {
-		log.Fatalf("Failed to parse agent config, %v", err)
+		log.Fatal().Err(err).Msg("Failed to parse agent config")
 	}
 
 	return config
@@ -61,7 +61,7 @@ func GetServerConfig() ServerConfig {
 	flag.Parse()
 
 	if err := env.Parse(&config); err != nil {
-		log.Fatalf("Failed to parse server config, %v", err)
+		log.Fatal().Err(err).Msg("Failed to parse server config")
 	}
 
 	return config

@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/config"
 	"github.com/hikjik/go-metrics/internal/server"
@@ -22,7 +22,7 @@ func main() {
 
 	metricsStorage, err := storage.New(ctx, cfg.StorageConfig)
 	if err != nil {
-		log.Fatalf("Failed to create storage: %v", err)
+		log.Error().Err(err).Msg("Failed to create storage")
 	}
 
 	srv := &http.Server{
@@ -37,12 +37,12 @@ func main() {
 		<-sig
 
 		if err = srv.Shutdown(context.Background()); err != nil {
-			log.Errorf("Failed to shutdown HTTP server: %v", err)
+			log.Error().Err(err).Msg("Failed to shutdown HTTP server")
 		}
 		close(idle)
 	}()
 	if err = srv.ListenAndServe(); err != http.ErrServerClosed {
-		log.Errorf("HTTP server ListenAndServe: %v", err)
+		log.Error().Err(err).Msg("HTTP server ListenAndServe")
 	}
 	<-idle
 }
