@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"hash"
 	"io"
 )
 
@@ -19,7 +20,7 @@ type Signer interface {
 
 // hmacSigner подписывает значения метрик с помощью алгоритма HMAC
 type hmacSigner struct {
-	key []byte
+	hash hash.Hash
 }
 
 // NewHMACSigner возвращает объект hmacSigner
@@ -28,7 +29,7 @@ func NewHMACSigner(key string) *hmacSigner {
 		return nil
 	}
 	return &hmacSigner{
-		key: []byte(key),
+		hash: hmac.New(sha256.New, []byte(key)),
 	}
 }
 
@@ -76,9 +77,9 @@ func (s *hmacSigner) computeHash(metric *Metric) ([]byte, error) {
 		return nil, fmt.Errorf("unknown metric type")
 	}
 
-	h := hmac.New(sha256.New, s.key)
-	if _, err := io.WriteString(h, msg); err != nil {
+	s.hash.Reset()
+	if _, err := io.WriteString(s.hash, msg); err != nil {
 		return nil, err
 	}
-	return h.Sum(nil), nil
+	return s.hash.Sum(nil), nil
 }
