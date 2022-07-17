@@ -8,8 +8,8 @@ require (
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/jackc/pgx/v4 v4.16.0
 	github.com/openlyinc/pointy v1.1.2
+	github.com/rs/zerolog v1.15.0
 	github.com/shirou/gopsutil/v3 v3.22.4
-	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.1
 )
 

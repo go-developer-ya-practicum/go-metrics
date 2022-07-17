@@ -8,16 +8,26 @@ import (
 	"github.com/hikjik/go-metrics/internal/metrics"
 )
 
-var ErrNotFound = errors.New("not found")
-var ErrUnknownMetricType = errors.New("unknown metric type")
-var ErrBadArgument = errors.New("bad argument")
+// Возможные ошибки при работе с хранилищем метрик
+var (
+	ErrNotFound          = errors.New("not found")
+	ErrUnknownMetricType = errors.New("unknown metric type")
+	ErrBadArgument       = errors.New("bad argument")
+)
 
+// Storage определяет интерфейс для хранения метрик
 type Storage interface {
+	// Put сохраняет значение метрики
 	Put(ctx context.Context, metric *metrics.Metric) error
+
+	// Get возвращает значение метрики
 	Get(ctx context.Context, metric *metrics.Metric) error
+
+	// List возвращает список всех сохраненных метрик
 	List(ctx context.Context) ([]*metrics.Metric, error)
 }
 
+// New вовращает объект типа Storage
 func New(ctx context.Context, cfg config.StorageConfig) (Storage, error) {
 	if cfg.DatabaseDNS != "" {
 		return newDBStorage(ctx, cfg)

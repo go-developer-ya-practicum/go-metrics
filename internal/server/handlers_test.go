@@ -1,7 +1,9 @@
-package handlers
+package server
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hikjik/go-metrics/internal/config"
+	"github.com/hikjik/go-metrics/internal/metrics"
 	"github.com/hikjik/go-metrics/internal/storage"
 )
 
@@ -113,15 +116,14 @@ func TestPutGetHandler(t *testing.T) {
 
 	s, err := storage.New(context.Background(), storageConfig)
 	require.NoError(t, err)
-	h := NewHandler(s, "")
+	router := NewRouter(s, "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.target, nil)
 			w := httptest.NewRecorder()
-			h.ServeHTTP(w, request)
+			router.ServeHTTP(w, request)
 
 			response := w.Result()
-			defer response.Body.Close()
 			assert.Equal(t, tt.want.statusCode, response.StatusCode)
 
 			if response.StatusCode == http.StatusOK {
@@ -129,6 +131,7 @@ func TestPutGetHandler(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, string(body), tt.want.body)
 			}
+			require.NoError(t, response.Body.Close())
 		})
 	}
 }
@@ -140,11 +143,11 @@ func TestGetAllHandler(t *testing.T) {
 
 		s, err := storage.New(context.Background(), storageConfig)
 		require.NoError(t, err)
-		h := NewHandler(s, "")
-		h.ServeHTTP(w, request)
+		router := NewRouter(s, "")
+		router.ServeHTTP(w, request)
 
 		response := w.Result()
-		defer response.Body.Close()
+		require.NoError(t, response.Body.Close())
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 	})
 }
@@ -251,15 +254,14 @@ func TestPutGetJSONHandler(t *testing.T) {
 
 	s, err := storage.New(context.Background(), storageConfig)
 	require.NoError(t, err)
-	h := NewHandler(s, "")
+	router := NewRouter(s, "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.target, strings.NewReader(tt.body))
 			request.Header.Add("Content-Type", tt.contentType)
 			w := httptest.NewRecorder()
-			h.ServeHTTP(w, request)
+			router.ServeHTTP(w, request)
 			response := w.Result()
-			defer response.Body.Close()
 
 			body, err := ioutil.ReadAll(response.Body)
 			require.NoError(t, err)
@@ -268,6 +270,143 @@ func TestPutGetJSONHandler(t *testing.T) {
 			if tt.want.body != "" {
 				assert.JSONEq(t, string(body), tt.want.body)
 			}
+			require.NoError(t, response.Body.Close())
 		})
 	}
+}
+
+func BenchmarkServer_PutMetricJSON(b *testing.B) {
+	s, err := storage.New(context.Background(), storageConfig)
+	require.NoError(b, err)
+
+	srv := httptest.NewServer(NewRouter(s, ""))
+	defer srv.Close()
+
+	metric := metrics.NewGauge("SomeMetric", 1.0)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		var buf bytes.Buffer
+		err = json.NewEncoder(&buf).Encode(metric)
+		require.NoError(b, err)
+
+		req, err := http.NewRequest(http.MethodPost, srv.URL+"/update/", &buf)
+		require.NoError(b, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		b.StartTimer()
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(b, err)
+		require.Equal(b, resp.StatusCode, http.StatusOK)
+		require.NoError(b, resp.Body.Close())
+	}
+}
+
+func BenchmarkServer_PutMetricJSONParallel(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		s, err := storage.New(context.Background(), storageConfig)
+		require.NoError(b, err)
+
+		srv := httptest.NewServer(NewRouter(s, ""))
+		defer srv.Close()
+
+		metric := metrics.NewGauge("SomeMetric", 1.0)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for pb.Next() {
+			b.StopTimer()
+
+			var buf bytes.Buffer
+			err = json.NewEncoder(&buf).Encode(metric)
+			require.NoError(b, err)
+
+			req, err := http.NewRequest(http.MethodPost, srv.URL+"/update/", &buf)
+			require.NoError(b, err)
+			req.Header.Set("Content-Type", "application/json")
+
+			b.StartTimer()
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(b, err)
+			require.Equal(b, resp.StatusCode, http.StatusOK)
+			require.NoError(b, resp.Body.Close())
+		}
+	})
+}
+
+func BenchmarkServer_GetMetricJSON(b *testing.B) {
+	s, err := storage.New(context.Background(), storageConfig)
+	require.NoError(b, err)
+
+	srv := httptest.NewServer(NewRouter(s, ""))
+	defer srv.Close()
+
+	metric := metrics.NewGauge("SomeMetric", 1.0)
+	err = s.Put(context.Background(), metric)
+	require.NoError(b, err)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		var buf bytes.Buffer
+		err = json.NewEncoder(&buf).Encode(metric)
+		require.NoError(b, err)
+
+		req, err := http.NewRequest(http.MethodPost, srv.URL+"/value/", &buf)
+		require.NoError(b, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		b.StartTimer()
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(b, err)
+		require.Equal(b, resp.StatusCode, http.StatusOK)
+		require.NoError(b, resp.Body.Close())
+	}
+}
+
+func BenchmarkServer_GetMetricJSONParallel(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		s, err := storage.New(context.Background(), storageConfig)
+		require.NoError(b, err)
+
+		srv := httptest.NewServer(NewRouter(s, ""))
+		defer srv.Close()
+
+		metric := metrics.NewGauge("SomeMetric", 1.0)
+		err = s.Put(context.Background(), metric)
+		require.NoError(b, err)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for pb.Next() {
+			b.StopTimer()
+
+			var buf bytes.Buffer
+			err = json.NewEncoder(&buf).Encode(metric)
+			require.NoError(b, err)
+
+			req, err := http.NewRequest(http.MethodPost, srv.URL+"/value/", &buf)
+			require.NoError(b, err)
+			req.Header.Set("Content-Type", "application/json")
+
+			b.StartTimer()
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(b, err)
+			require.Equal(b, resp.StatusCode, http.StatusOK)
+			require.NoError(b, resp.Body.Close())
+		}
+	})
 }

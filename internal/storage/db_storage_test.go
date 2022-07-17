@@ -57,18 +57,20 @@ func TestGet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
-			defer db.Close()
 
 			storage := &DBStorage{db: db}
 
-			mock.ExpectQuery(tt.sqlQuery).
-				WithArgs(tt.m.ID).
-				WillReturnRows(mock.NewRows([]string{"value"}).AddRow(tt.target))
+			if tt.err == nil {
+				mock.ExpectQuery(tt.sqlQuery).
+					WithArgs(tt.m.ID).
+					WillReturnRows(mock.NewRows([]string{"value"}).AddRow(tt.target))
+			}
+			mock.ExpectClose()
 
 			err = storage.Get(context.Background(), &tt.m)
 			if tt.err == nil {
 				require.NoError(t, err)
-				require.NoError(t, mock.ExpectationsWereMet())
+
 				switch tt.m.MType {
 				case metrics.CounterType:
 					require.NotNil(t, tt.m.Delta)
@@ -82,6 +84,8 @@ func TestGet(t *testing.T) {
 			} else {
 				require.ErrorIs(t, err, tt.err)
 			}
+			require.NoError(t, db.Close())
+			require.NoError(t, mock.ExpectationsWereMet())
 		})
 	}
 }
@@ -89,7 +93,6 @@ func TestGet(t *testing.T) {
 func TestList(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
 
 	storage := &DBStorage{db: db}
 
@@ -115,12 +118,12 @@ func TestList(t *testing.T) {
 	}
 	mock.ExpectQuery("SELECT name, value FROM counter").
 		WillReturnRows(cRows)
+	mock.ExpectClose()
 
 	expected := append(gauges, counters...)
 
 	actual, err := storage.List(context.Background())
 	require.NoError(t, err)
-	require.NoError(t, mock.ExpectationsWereMet())
 	require.Equal(t, len(expected), len(actual))
 
 	sort.SliceStable(expected, func(i, j int) bool {
@@ -141,6 +144,8 @@ func TestList(t *testing.T) {
 			require.False(t, true)
 		}
 	}
+	require.NoError(t, db.Close())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestPut(t *testing.T) {
@@ -185,7 +190,6 @@ func TestPut(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			require.NoError(t, err)
-			defer db.Close()
 
 			storage := &DBStorage{db: db}
 
@@ -206,8 +210,11 @@ func TestPut(t *testing.T) {
 				default:
 					require.False(t, true)
 				}
+				mock.ExpectClose()
+
 				err = storage.Put(context.Background(), &tt.m)
 				require.NoError(t, err)
+				require.NoError(t, db.Close())
 				require.NoError(t, mock.ExpectationsWereMet())
 			}
 		})

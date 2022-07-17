@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/openlyinc/pointy"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/config"
 	"github.com/hikjik/go-metrics/internal/metrics"
@@ -29,7 +29,7 @@ func newFileStorage(ctx context.Context, cfg config.StorageConfig) (Storage, err
 
 	if cfg.Restore {
 		if err := storage.load(cfg.StoreFile); err != nil {
-			log.Warnf("Failed to load metrics storage: %v", err)
+			log.Warn().Err(err).Msg("Failed to load metrics storage")
 		}
 	}
 
@@ -41,9 +41,9 @@ func newFileStorage(ctx context.Context, cfg config.StorageConfig) (Storage, err
 				return
 			case <-storeTicker.C:
 				if err := storage.dump(cfg.StoreFile); err != nil {
-					log.Warnf("Failed to dump metrics storage: %v", err)
+					log.Warn().Err(err).Msg("Failed to dump metrics storage")
 				} else {
-					log.Infoln("Dump server metrics")
+					log.Info().Msg("Dump server metrics")
 				}
 			}
 		}
@@ -52,7 +52,7 @@ func newFileStorage(ctx context.Context, cfg config.StorageConfig) (Storage, err
 	return storage, nil
 }
 
-func (s *FileStorage) Put(ctx context.Context, metric *metrics.Metric) error {
+func (s *FileStorage) Put(_ context.Context, metric *metrics.Metric) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -73,7 +73,7 @@ func (s *FileStorage) Put(ctx context.Context, metric *metrics.Metric) error {
 	return nil
 }
 
-func (s *FileStorage) Get(ctx context.Context, metric *metrics.Metric) error {
+func (s *FileStorage) Get(_ context.Context, metric *metrics.Metric) error {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -96,7 +96,7 @@ func (s *FileStorage) Get(ctx context.Context, metric *metrics.Metric) error {
 	return nil
 }
 
-func (s *FileStorage) List(ctx context.Context) ([]*metrics.Metric, error) {
+func (s *FileStorage) List(_ context.Context) ([]*metrics.Metric, error) {
 	s.RLock()
 	defer s.RUnlock()
 

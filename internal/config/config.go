@@ -5,9 +5,10 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v6"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 )
 
+// AgentConfig содержит настройки агента по сбору метрик
 type AgentConfig struct {
 	Address        string        `env:"ADDRESS"`
 	PollInterval   time.Duration `env:"POLL_INTERVAL"`
@@ -15,6 +16,7 @@ type AgentConfig struct {
 	Key            string        `env:"KEY"`
 }
 
+// StorageConfig содержит настройки хранилища метрик
 type StorageConfig struct {
 	StoreFile     string        `env:"STORE_FILE"`
 	StoreInterval time.Duration `env:"STORE_INTERVAL"`
@@ -22,12 +24,14 @@ type StorageConfig struct {
 	DatabaseDNS   string        `env:"DATABASE_DSN"`
 }
 
+// ServerConfig содержит настройки сервера по сбору рантайм-метрик
 type ServerConfig struct {
 	Address       string `env:"ADDRESS"`
 	Key           string `env:"KEY"`
 	StorageConfig StorageConfig
 }
 
+// GetAgentConfig возвращает настройки AgentConfig
 func GetAgentConfig() AgentConfig {
 	var config AgentConfig
 
@@ -38,12 +42,13 @@ func GetAgentConfig() AgentConfig {
 	flag.Parse()
 
 	if err := env.Parse(&config); err != nil {
-		log.Fatalf("Failed to parse agent config, %v", err)
+		log.Fatal().Err(err).Msg("Failed to parse agent config")
 	}
 
 	return config
 }
 
+// GetServerConfig возвращает настройки ServerConfig
 func GetServerConfig() ServerConfig {
 	var config ServerConfig
 
@@ -56,7 +61,7 @@ func GetServerConfig() ServerConfig {
 	flag.Parse()
 
 	if err := env.Parse(&config); err != nil {
-		log.Fatalf("Failed to parse server config, %v", err)
+		log.Fatal().Err(err).Msg("Failed to parse server config")
 	}
 
 	return config

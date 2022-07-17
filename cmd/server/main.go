@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/config"
-	"github.com/hikjik/go-metrics/internal/handlers"
+	"github.com/hikjik/go-metrics/internal/server"
 	"github.com/hikjik/go-metrics/internal/storage"
 )
 
@@ -22,12 +22,12 @@ func main() {
 
 	metricsStorage, err := storage.New(ctx, cfg.StorageConfig)
 	if err != nil {
-		log.Fatalf("Failed to create storage: %v", err)
+		log.Error().Err(err).Msg("Failed to create storage")
 	}
 
-	server := &http.Server{
+	srv := &http.Server{
 		Addr:    cfg.Address,
-		Handler: handlers.NewHandler(metricsStorage, cfg.Key),
+		Handler: server.NewRouter(metricsStorage, cfg.Key),
 	}
 
 	idle := make(chan struct{})
@@ -36,13 +36,13 @@ func main() {
 		signal.Notify(sig, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
 		<-sig
 
-		if err := server.Shutdown(context.Background()); err != nil {
-			log.Errorf("Failed to shutdown HTTP server: %v", err)
+		if err = srv.Shutdown(context.Background()); err != nil {
+			log.Error().Err(err).Msg("Failed to shutdown HTTP server")
 		}
 		close(idle)
 	}()
-	if err := server.ListenAndServe(); err != http.ErrServerClosed {
-		log.Errorf("HTTP server ListenAndServe: %v", err)
+	if err = srv.ListenAndServe(); err != http.ErrServerClosed {
+		log.Error().Err(err).Msg("HTTP server ListenAndServe")
 	}
 	<-idle
 }

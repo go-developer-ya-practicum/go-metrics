@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/config"
 	"github.com/hikjik/go-metrics/internal/metrics"
@@ -19,33 +19,31 @@ import (
 
 type agent struct {
 	collector *metrics.Collector
-	key       string
+	signer    metrics.Signer
 	address   string
 }
 
 func (a *agent) sendMetrics() {
 	collection := a.collector.ListMetrics()
-	if a.key != "" {
-		for _, metric := range collection {
-			if err := metrics.Sign(metric, a.key); err != nil {
-				log.Warnf("Failed to set hash: %v", err)
-			}
+	for _, metric := range collection {
+		if err := a.signer.Sign(metric); err != nil {
+			log.Warn().Err(err).Msg("Failed to set hash")
 		}
 	}
 
 	data, err := json.Marshal(collection)
 	if err != nil {
-		log.Warnf("Failed to marshal metrics")
+		log.Warn().Err(err).Msg("Failed to marshal metrics")
 		return
 	}
 	url := fmt.Sprintf("http://%s/updates/", a.address)
 	response, err := http.Post(url, "application/json", bytes.NewBuffer(data))
 	if err != nil {
-		log.Warnf("Failed to post metric: %v", err)
+		log.Warn().Err(err).Msg("Failed to post metric")
 		return
 	}
 	if err := response.Body.Close(); err != nil {
-		log.Warnf("Failed to close response body: %v", err)
+		log.Warn().Err(err).Msg("Failed to close response body")
 	}
 }
 
@@ -55,7 +53,7 @@ func main() {
 	collector := metrics.NewCollector()
 	a := &agent{
 		collector: collector,
-		key:       cfg.Key,
+		signer:    metrics.NewHMACSigner(cfg.Key),
 		address:   cfg.Address,
 	}
 
