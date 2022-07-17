@@ -8,24 +8,36 @@ import (
 	"io"
 )
 
-// Signer подписывает значения метрик с помощью алгоритма HMAC
-type Signer struct {
+// Signer интерфейс, предоставляющий механизм подписи передаваемых метрик
+type Signer interface {
+	// Sign создает подпись для указанной метрики
+	Sign(metric *Metric) error
+
+	// Validate производит проверку подписи для указанной метрики
+	Validate(metric *Metric) (bool, error)
+}
+
+// hmacSigner подписывает значения метрик с помощью алгоритма HMAC
+type hmacSigner struct {
 	key []byte
 }
 
-// NewSigner возвращает новый Signer
-func NewSigner(key string) *Signer {
+// NewHMACSigner возвращает объект hmacSigner
+func NewHMACSigner(key string) *hmacSigner {
 	if key == "" {
 		return nil
 	}
-	return &Signer{
+	return &hmacSigner{
 		key: []byte(key),
 	}
 }
 
 // Sign вычисляет подпись для метрики по алгоритму SHA256
 // и сохраняет в поле Hash значение полученного хеш-значения.
-func (s *Signer) Sign(metric *Metric) error {
+func (s *hmacSigner) Sign(metric *Metric) error {
+	if s == nil {
+		return nil
+	}
 	h, err := s.computeHash(metric)
 	if err != nil {
 		return err
@@ -36,7 +48,10 @@ func (s *Signer) Sign(metric *Metric) error {
 }
 
 // Validate проверяет валидность хеш-значения метрики
-func (s *Signer) Validate(metric *Metric) (bool, error) {
+func (s *hmacSigner) Validate(metric *Metric) (bool, error) {
+	if s == nil {
+		return true, nil
+	}
 	computed, err := s.computeHash(metric)
 	if err != nil {
 		return false, err
@@ -50,7 +65,7 @@ func (s *Signer) Validate(metric *Metric) (bool, error) {
 	return hmac.Equal(computed, decoded), nil
 }
 
-func (s *Signer) computeHash(metric *Metric) ([]byte, error) {
+func (s *hmacSigner) computeHash(metric *Metric) ([]byte, error) {
 	var msg string
 	switch metric.MType {
 	case CounterType:

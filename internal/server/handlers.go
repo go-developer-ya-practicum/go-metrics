@@ -22,7 +22,7 @@ var fs embed.FS
 
 type Server struct {
 	Storage storage.Storage
-	Signer  *metrics.Signer
+	Signer  metrics.Signer
 }
 
 // PingDatabase хендлер для проверки доступности базы данных
@@ -130,12 +130,10 @@ func (s *Server) GetMetricJSON() http.HandlerFunc {
 			return
 		}
 
-		if s.Signer != nil {
-			if err = s.Signer.Sign(&m); err != nil {
-				log.Warn().Err(err).Msg("Failed to set hash")
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
+		if err = s.Signer.Sign(&m); err != nil {
+			log.Warn().Err(err).Msg("Failed to set hash")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		if err = json.NewEncoder(w).Encode(m); err != nil {
@@ -197,18 +195,17 @@ func (s *Server) PutMetricJSON() http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if s.Signer != nil {
-			ok, err := s.Signer.Validate(&m)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				log.Warn().Err(err).Msg("Failed to validate hash")
-				return
-			}
-			if !ok {
-				w.WriteHeader(http.StatusBadRequest)
-				log.Info().Msgf("Invalid hash: %v", m)
-				return
-			}
+
+		ok, err := s.Signer.Validate(&m)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Warn().Err(err).Msg("Failed to validate hash")
+			return
+		}
+		if !ok {
+			w.WriteHeader(http.StatusBadRequest)
+			log.Info().Msgf("Invalid hash: %v", m)
+			return
 		}
 
 		if err := s.Storage.Put(r.Context(), &m); err != nil {
@@ -234,18 +231,17 @@ func (s *Server) PutMetricBatchJSON() http.HandlerFunc {
 			return
 		}
 		for _, m := range metricsBatch {
-			if s.Signer != nil {
-				ok, err := s.Signer.Validate(&m)
-				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					log.Warn().Err(err).Msg("Failed to validate hash")
-					return
-				}
-				if !ok {
-					w.WriteHeader(http.StatusBadRequest)
-					log.Info().Msgf("Invalid hash: %v", m)
-					return
-				}
+
+			ok, err := s.Signer.Validate(&m)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				log.Warn().Err(err).Msg("Failed to validate hash")
+				return
+			}
+			if !ok {
+				w.WriteHeader(http.StatusBadRequest)
+				log.Info().Msgf("Invalid hash: %v", m)
+				return
 			}
 
 			if err := s.Storage.Put(r.Context(), &m); err != nil {

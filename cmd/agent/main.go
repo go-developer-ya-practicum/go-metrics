@@ -19,17 +19,15 @@ import (
 
 type agent struct {
 	collector *metrics.Collector
-	signer    *metrics.Signer
+	signer    metrics.Signer
 	address   string
 }
 
 func (a *agent) sendMetrics() {
 	collection := a.collector.ListMetrics()
-	if a.signer != nil {
-		for _, metric := range collection {
-			if err := a.signer.Sign(metric); err != nil {
-				log.Warn().Err(err).Msg("Failed to set hash")
-			}
+	for _, metric := range collection {
+		if err := a.signer.Sign(metric); err != nil {
+			log.Warn().Err(err).Msg("Failed to set hash")
 		}
 	}
 
@@ -55,7 +53,7 @@ func main() {
 	collector := metrics.NewCollector()
 	a := &agent{
 		collector: collector,
-		signer:    metrics.NewSigner(cfg.Key),
+		signer:    metrics.NewHMACSigner(cfg.Key),
 		address:   cfg.Address,
 	}
 

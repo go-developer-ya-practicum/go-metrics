@@ -12,7 +12,7 @@ import (
 func NewRouter(storage storage.Storage, key string) *chi.Mux {
 	srv := &Server{
 		Storage: storage,
-		Signer:  metrics.NewSigner(key),
+		Signer:  metrics.NewHMACSigner(key),
 	}
 
 	router := chi.NewRouter()
