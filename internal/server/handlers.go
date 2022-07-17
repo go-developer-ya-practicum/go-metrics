@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -94,7 +95,9 @@ func (s *Server) GetMetric() http.HandlerFunc {
 			str = fmt.Sprintf("%d", *m.Delta)
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(str))
+		if _, err := io.WriteString(w, str); err != nil {
+			log.Warnf("Write failed: %v", err)
+		}
 	}
 }
 

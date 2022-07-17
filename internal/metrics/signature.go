@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 )
 
 // Signer подписывает значения метрик с помощью алгоритма HMAC
@@ -61,6 +62,8 @@ func (s *Signer) computeHash(metric *Metric) ([]byte, error) {
 	}
 
 	h := hmac.New(sha256.New, s.key)
-	h.Write([]byte(msg))
+	if _, err := io.WriteString(h, msg); err != nil {
+		return nil, err
+	}
 	return h.Sum(nil), nil
 }

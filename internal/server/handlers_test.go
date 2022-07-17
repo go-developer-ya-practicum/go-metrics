@@ -124,7 +124,6 @@ func TestPutGetHandler(t *testing.T) {
 			router.ServeHTTP(w, request)
 
 			response := w.Result()
-			defer response.Body.Close()
 			assert.Equal(t, tt.want.statusCode, response.StatusCode)
 
 			if response.StatusCode == http.StatusOK {
@@ -132,6 +131,7 @@ func TestPutGetHandler(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, string(body), tt.want.body)
 			}
+			require.NoError(t, response.Body.Close())
 		})
 	}
 }
@@ -147,7 +147,7 @@ func TestGetAllHandler(t *testing.T) {
 		router.ServeHTTP(w, request)
 
 		response := w.Result()
-		defer response.Body.Close()
+		require.NoError(t, response.Body.Close())
 		assert.Equal(t, http.StatusOK, response.StatusCode)
 	})
 }
@@ -262,7 +262,6 @@ func TestPutGetJSONHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, request)
 			response := w.Result()
-			defer response.Body.Close()
 
 			body, err := ioutil.ReadAll(response.Body)
 			require.NoError(t, err)
@@ -271,6 +270,7 @@ func TestPutGetJSONHandler(t *testing.T) {
 			if tt.want.body != "" {
 				assert.JSONEq(t, string(body), tt.want.body)
 			}
+			require.NoError(t, response.Body.Close())
 		})
 	}
 }
