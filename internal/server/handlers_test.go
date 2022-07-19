@@ -155,8 +155,8 @@ func TestGetAllHandler(t *testing.T) {
 func TestPutGetJSONHandler(t *testing.T) {
 	type want struct {
 		body        string
-		statusCode  int
 		contentType string
+		statusCode  int
 	}
 	tests := []struct {
 		name        string
