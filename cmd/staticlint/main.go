@@ -50,6 +50,8 @@ import (
 	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
 	"honnef.co/go/tools/stylecheck"
+
+	"github.com/hikjik/go-metrics/internal/analyzers"
 )
 
 func main() {
@@ -110,6 +112,8 @@ func main() {
 	analyzersList = append(analyzersList, critic.Analyzer)
 	analyzersList = append(analyzersList, nilerr.Analyzer)
 	analyzersList = append(analyzersList, unused.Analyzer)
+
+	analyzersList = append(analyzersList, analyzers.ExitCallAnalyzer)
 
 	multichecker.Main(analyzersList...)
 }

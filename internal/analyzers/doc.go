@@ -1,2 +1,2 @@
-// Package analyzers предназначен для работы со статическими анализаторами кода.
+// Package analyzers содержит статические анализаторы кода
 package analyzers
