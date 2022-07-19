@@ -51,10 +51,14 @@ import (
 	"honnef.co/go/tools/staticcheck"
 	"honnef.co/go/tools/stylecheck"
 
-	"github.com/hikjik/go-metrics/internal/analyzers"
+	"github.com/hikjik/go-metrics/internal/analyzers/exitcallanalizer"
 )
 
 func main() {
+	multichecker.Main(GetAnalyzers()...)
+}
+
+func GetAnalyzers() []*analysis.Analyzer {
 	analyzersList := []*analysis.Analyzer{
 		asmdecl.Analyzer,
 		assign.Analyzer,
@@ -113,7 +117,6 @@ func main() {
 	analyzersList = append(analyzersList, nilerr.Analyzer)
 	analyzersList = append(analyzersList, unused.Analyzer)
 
-	analyzersList = append(analyzersList, analyzers.ExitCallAnalyzer)
-
-	multichecker.Main(analyzersList...)
+	analyzersList = append(analyzersList, exitcallanalizer.ExitCallAnalyzer)
+	return analyzersList
 }

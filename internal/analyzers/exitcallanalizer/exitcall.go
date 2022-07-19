@@ -1,4 +1,6 @@
-package analyzers
+// Package exitcallanalizer содержит статический анализатор,
+// запрещающий использовать прямой вызов os.Exit в функции main пакета main
+package exitcallanalizer
 
 import (
 	"go/ast"
@@ -34,7 +36,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				if selExpr, ok := x.Fun.(*ast.SelectorExpr); ok {
 					if expr, ok := selExpr.X.(*ast.Ident); ok {
 						if expr.Name == "os" && selExpr.Sel.Name == "Exit" {
-							pass.Reportf(node.Pos(), "call os.Exit() in main of main package")
+							pass.Reportf(node.Pos(), "call os.Exit() in main function of main package")
 						}
 					}
 				}
