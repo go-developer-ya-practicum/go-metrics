@@ -11,11 +11,10 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/metrics"
-	"github.com/hikjik/go-metrics/internal/storage"
 )
 
 func ExampleServer_PutMetricJSON() {
-	s, err := storage.New(context.Background(), storageConfig)
+	s, err := NewTempStorage()
 	if err != nil {
 		log.Fatal().Msg("Failed to create storage")
 	}
@@ -48,7 +47,7 @@ func ExampleServer_PutMetricJSON() {
 }
 
 func ExampleServer_PutMetric() {
-	s, err := storage.New(context.Background(), storageConfig)
+	s, err := NewTempStorage()
 	if err != nil {
 		log.Fatal().Msg("Failed to create storage")
 	}
@@ -77,7 +76,7 @@ func ExampleServer_PutMetric() {
 }
 
 func ExampleServer_GetMetricJSON() {
-	s, err := storage.New(context.Background(), storageConfig)
+	s, err := NewTempStorage()
 	if err != nil {
 		log.Fatal().Msg("Failed to create storage")
 	}
