@@ -12,7 +12,8 @@ import (
 // AgentConfig содержит настройки агента по сбору метрик
 type AgentConfig struct {
 	Address        string        `env:"ADDRESS"`
-	Key            string        `env:"KEY"`
+	SignatureKey   string        `env:"KEY"`
+	PublicKeyPath  string        `env:"CRYPTO_KEY"`
 	PollInterval   time.Duration `env:"POLL_INTERVAL"`
 	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
 }
@@ -27,9 +28,10 @@ type StorageConfig struct {
 
 // ServerConfig содержит настройки сервера по сбору рантайм-метрик
 type ServerConfig struct {
-	Address       string `env:"ADDRESS"`
-	Key           string `env:"KEY"`
-	StorageConfig StorageConfig
+	Address           string `env:"ADDRESS"`
+	SignatureKey      string `env:"KEY"`
+	EncryptionKeyPath string `env:"CRYPTO_KEY"`
+	StorageConfig     StorageConfig
 }
 
 // GetAgentConfig возвращает настройки AgentConfig
@@ -39,7 +41,8 @@ func GetAgentConfig() AgentConfig {
 	flag.StringVar(&config.Address, "a", "127.0.0.1:8080", "Server address")
 	flag.DurationVar(&config.PollInterval, "p", time.Second*2, "Poll interval, sec")
 	flag.DurationVar(&config.ReportInterval, "r", time.Second*10, "Report interval, sec")
-	flag.StringVar(&config.Key, "k", "", "HMAC key")
+	flag.StringVar(&config.SignatureKey, "k", "", "HMAC key")
+	flag.StringVar(&config.PublicKeyPath, "crypto-key", "", "Path to public RSA key")
 	flag.Parse()
 
 	if err := env.Parse(&config); err != nil {
@@ -54,11 +57,12 @@ func GetServerConfig() ServerConfig {
 	var config ServerConfig
 
 	flag.StringVar(&config.Address, "a", "127.0.0.1:8080", "Server Address")
-	flag.StringVar(&config.Key, "k", "", "HMAC key")
+	flag.StringVar(&config.SignatureKey, "k", "", "HMAC key")
 	flag.StringVar(&config.StorageConfig.StoreFile, "f", "/tmp/devops-metrics-db.json", "Store File")
 	flag.DurationVar(&config.StorageConfig.StoreInterval, "i", time.Second*300, "Store Interval")
 	flag.BoolVar(&config.StorageConfig.Restore, "r", true, "Restore After Start")
 	flag.StringVar(&config.StorageConfig.DatabaseDNS, "d", "", "Database DNS")
+	flag.StringVar(&config.EncryptionKeyPath, "crypto-key", "", "Path to private RSA key")
 	flag.Parse()
 
 	if err := env.Parse(&config); err != nil {

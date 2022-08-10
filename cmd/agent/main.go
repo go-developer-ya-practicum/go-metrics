@@ -13,6 +13,8 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/config"
+	"github.com/hikjik/go-metrics/internal/encryption"
+	"github.com/hikjik/go-metrics/internal/encryption/rsa"
 	"github.com/hikjik/go-metrics/internal/greeting"
 	"github.com/hikjik/go-metrics/internal/metrics"
 	"github.com/hikjik/go-metrics/internal/scheduler"
@@ -27,7 +29,15 @@ var (
 type agent struct {
 	collector *metrics.Collector
 	signer    metrics.Signer
+	encrypter encryption.Encrypter
 	address   string
+}
+
+func (a *agent) encryptData(data []byte) ([]byte, error) {
+	if a.encrypter == nil {
+		return data, nil
+	}
+	return a.encrypter.Encrypt(data)
 }
 
 func (a *agent) sendMetrics() {
@@ -43,8 +53,15 @@ func (a *agent) sendMetrics() {
 		log.Warn().Err(err).Msg("Failed to marshal metrics")
 		return
 	}
+
+	encryptedData, err := a.encryptData(data)
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to encrypt metrics data")
+		return
+	}
+
 	url := fmt.Sprintf("http://%s/updates/", a.address)
-	response, err := http.Post(url, "application/json", bytes.NewBuffer(data))
+	response, err := http.Post(url, "application/json", bytes.NewBuffer(encryptedData))
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to post metric")
 		return
@@ -62,9 +79,18 @@ func main() {
 	cfg := config.GetAgentConfig()
 
 	collector := metrics.NewCollector()
+
+	encrypter, err := rsa.NewEncrypter(cfg.PublicKeyPath)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to setup rsa encryption")
+	}
+
+	signer := metrics.NewHMACSigner(cfg.SignatureKey)
+
 	a := &agent{
 		collector: collector,
-		signer:    metrics.NewHMACSigner(cfg.Key),
+		signer:    signer,
+		encrypter: encrypter,
 		address:   cfg.Address,
 	}
 

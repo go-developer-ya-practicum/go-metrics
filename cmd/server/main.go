@@ -10,7 +10,9 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/config"
+	"github.com/hikjik/go-metrics/internal/encryption/rsa"
 	"github.com/hikjik/go-metrics/internal/greeting"
+	"github.com/hikjik/go-metrics/internal/metrics"
 	"github.com/hikjik/go-metrics/internal/server"
 	"github.com/hikjik/go-metrics/internal/storage"
 )
@@ -36,9 +38,16 @@ func main() {
 		log.Error().Err(err).Msg("Failed to create storage")
 	}
 
+	decrypter, err := rsa.NewDecrypter(cfg.EncryptionKeyPath)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to setup rsa decryption")
+	}
+
+	signer := metrics.NewHMACSigner(cfg.SignatureKey)
+
 	srv := &http.Server{
 		Addr:    cfg.Address,
-		Handler: server.NewRouter(metricsStorage, cfg.Key),
+		Handler: server.NewRouter(metricsStorage, decrypter, signer),
 	}
 
 	idle := make(chan struct{})
