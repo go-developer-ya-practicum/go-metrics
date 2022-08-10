@@ -15,10 +15,9 @@ import (
 )
 
 type FileStorage struct {
-	sync.RWMutex
-
 	Floats   map[string]float64
 	Integers map[string]int64
+	sync.RWMutex
 }
 
 func newFileStorage(ctx context.Context, cfg config.StorageConfig) (Storage, error) {

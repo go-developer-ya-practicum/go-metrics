@@ -11,18 +11,16 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/metrics"
-	"github.com/hikjik/go-metrics/internal/storage"
 )
 
 func ExampleServer_PutMetricJSON() {
-	s, err := storage.New(context.Background(), storageConfig)
+	s, err := NewTempStorage()
 	if err != nil {
 		log.Fatal().Msg("Failed to create storage")
 	}
 	router := NewRouter(s, "")
 
 	srv := httptest.NewServer(router)
-	defer srv.Close()
 
 	metric := metrics.NewGauge("SomeMetric", 1.0)
 	var buf bytes.Buffer
@@ -43,19 +41,19 @@ func ExampleServer_PutMetricJSON() {
 		log.Fatal().Err(err)
 	}
 	fmt.Printf("Put request JSON: %s\n", resp.Status)
+	srv.Close()
 
 	// Output: Put request JSON: 200 OK
 }
 
 func ExampleServer_PutMetric() {
-	s, err := storage.New(context.Background(), storageConfig)
+	s, err := NewTempStorage()
 	if err != nil {
 		log.Fatal().Msg("Failed to create storage")
 	}
 	router := NewRouter(s, "")
 
 	srv := httptest.NewServer(router)
-	defer srv.Close()
 
 	metric := metrics.NewGauge("SomeMetric", 1.0)
 
@@ -72,19 +70,19 @@ func ExampleServer_PutMetric() {
 		log.Fatal().Err(err)
 	}
 	fmt.Printf("Put request url-params: %s\n", resp.Status)
+	srv.Close()
 
 	// Output: Put request url-params: 200 OK
 }
 
 func ExampleServer_GetMetricJSON() {
-	s, err := storage.New(context.Background(), storageConfig)
+	s, err := NewTempStorage()
 	if err != nil {
 		log.Fatal().Msg("Failed to create storage")
 	}
 	router := NewRouter(s, "")
 
 	srv := httptest.NewServer(router)
-	defer srv.Close()
 
 	metric := metrics.NewGauge("SomeMetric", 1.0)
 	if err = s.Put(context.Background(), metric); err != nil {
@@ -115,6 +113,7 @@ func ExampleServer_GetMetricJSON() {
 	if err = resp.Body.Close(); err != nil {
 		log.Fatal().Err(err)
 	}
+	srv.Close()
 
 	// Output Get request JSON: 200 OK
 	// Metric: gauge 1.00

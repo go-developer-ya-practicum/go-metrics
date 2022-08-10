@@ -14,11 +14,11 @@ import (
 
 func TestGet(t *testing.T) {
 	tests := []struct {
-		name     string
-		m        metrics.Metric
 		err      error
-		sqlQuery string
 		target   interface{}
+		m        metrics.Metric
+		name     string
+		sqlQuery string
 	}{
 		{
 			name:     "Get Counter",
@@ -120,7 +120,9 @@ func TestList(t *testing.T) {
 		WillReturnRows(cRows)
 	mock.ExpectClose()
 
-	expected := append(gauges, counters...)
+	var expected []*metrics.Metric
+	expected = append(expected, gauges...)
+	expected = append(expected, counters...)
 
 	actual, err := storage.List(context.Background())
 	require.NoError(t, err)

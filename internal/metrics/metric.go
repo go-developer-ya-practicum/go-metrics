@@ -1,3 +1,4 @@
+// Package metrics предоставляет функционал по сбору рантайм-метрик.
 package metrics
 
 import (

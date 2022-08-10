@@ -1,3 +1,4 @@
+// Package config предназначен для настройки агентов и сервера по сбору рантайм-метрик
 package config
 
 import (
@@ -11,17 +12,17 @@ import (
 // AgentConfig содержит настройки агента по сбору метрик
 type AgentConfig struct {
 	Address        string        `env:"ADDRESS"`
+	Key            string        `env:"KEY"`
 	PollInterval   time.Duration `env:"POLL_INTERVAL"`
 	ReportInterval time.Duration `env:"REPORT_INTERVAL"`
-	Key            string        `env:"KEY"`
 }
 
 // StorageConfig содержит настройки хранилища метрик
 type StorageConfig struct {
 	StoreFile     string        `env:"STORE_FILE"`
+	DatabaseDNS   string        `env:"DATABASE_DSN"`
 	StoreInterval time.Duration `env:"STORE_INTERVAL"`
 	Restore       bool          `env:"RESTORE"`
-	DatabaseDNS   string        `env:"DATABASE_DSN"`
 }
 
 // ServerConfig содержит настройки сервера по сбору рантайм-метрик

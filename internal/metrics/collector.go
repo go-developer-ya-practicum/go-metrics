@@ -14,12 +14,11 @@ import (
 // Collector собирает различные рантайм-метрики для их последующей отправки на сервер по протоколу HTTP.
 // В качестве источника метрик используются пакеты runtime и gopsutil.
 type Collector struct {
-	muRuntime      sync.RWMutex
-	PollCount      int64
-	RuntimeMetrics map[string]float64
-
-	muUtilize          sync.RWMutex
+	RuntimeMetrics     map[string]float64
 	UtilizationMetrics map[string]float64
+	PollCount          int64
+	muRuntime          sync.RWMutex
+	muUtilize          sync.RWMutex
 }
 
 // NewCollector создает экземпляр Collector

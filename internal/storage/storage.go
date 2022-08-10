@@ -1,3 +1,4 @@
+// Package storage предоставляет интерфейс для хранения рантайм-метрик.
 package storage
 
 import (

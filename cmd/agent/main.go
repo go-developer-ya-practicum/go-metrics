@@ -13,8 +13,15 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/config"
+	"github.com/hikjik/go-metrics/internal/greeting"
 	"github.com/hikjik/go-metrics/internal/metrics"
 	"github.com/hikjik/go-metrics/internal/scheduler"
+)
+
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
 )
 
 type agent struct {
@@ -48,6 +55,10 @@ func (a *agent) sendMetrics() {
 }
 
 func main() {
+	if err := greeting.PrintBuildInfo(os.Stdout, buildVersion, buildDate, buildCommit); err != nil {
+		log.Warn().Err(err).Msg("Failed to print build info")
+	}
+
 	cfg := config.GetAgentConfig()
 
 	collector := metrics.NewCollector()

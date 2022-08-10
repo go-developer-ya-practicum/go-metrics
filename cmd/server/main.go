@@ -10,11 +10,22 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/config"
+	"github.com/hikjik/go-metrics/internal/greeting"
 	"github.com/hikjik/go-metrics/internal/server"
 	"github.com/hikjik/go-metrics/internal/storage"
 )
 
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+)
+
 func main() {
+	if err := greeting.PrintBuildInfo(os.Stdout, buildVersion, buildDate, buildCommit); err != nil {
+		log.Warn().Err(err).Msg("Failed to print build info")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

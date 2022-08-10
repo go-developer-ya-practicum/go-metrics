@@ -19,14 +19,13 @@ import (
 	"github.com/hikjik/go-metrics/internal/storage"
 )
 
-var storageConfig config.StorageConfig
-
-func init() {
-	storageConfig = config.StorageConfig{
+func NewTempStorage() (storage.Storage, error) {
+	storageConfig := config.StorageConfig{
 		StoreFile:     "tmp/storage.json",
 		StoreInterval: time.Second * 300,
 		Restore:       false,
 	}
+	return storage.New(context.Background(), storageConfig)
 }
 
 func TestPutGetHandler(t *testing.T) {
@@ -114,7 +113,7 @@ func TestPutGetHandler(t *testing.T) {
 		},
 	}
 
-	s, err := storage.New(context.Background(), storageConfig)
+	s, err := NewTempStorage()
 	require.NoError(t, err)
 	router := NewRouter(s, "")
 	for _, tt := range tests {
@@ -141,7 +140,7 @@ func TestGetAllHandler(t *testing.T) {
 		request := httptest.NewRequest(http.MethodGet, "/", nil)
 		w := httptest.NewRecorder()
 
-		s, err := storage.New(context.Background(), storageConfig)
+		s, err := NewTempStorage()
 		require.NoError(t, err)
 		router := NewRouter(s, "")
 		router.ServeHTTP(w, request)
@@ -155,8 +154,8 @@ func TestGetAllHandler(t *testing.T) {
 func TestPutGetJSONHandler(t *testing.T) {
 	type want struct {
 		body        string
-		statusCode  int
 		contentType string
+		statusCode  int
 	}
 	tests := []struct {
 		name        string
@@ -252,7 +251,7 @@ func TestPutGetJSONHandler(t *testing.T) {
 		},
 	}
 
-	s, err := storage.New(context.Background(), storageConfig)
+	s, err := NewTempStorage()
 	require.NoError(t, err)
 	router := NewRouter(s, "")
 	for _, tt := range tests {
@@ -276,7 +275,7 @@ func TestPutGetJSONHandler(t *testing.T) {
 }
 
 func BenchmarkServer_PutMetricJSON(b *testing.B) {
-	s, err := storage.New(context.Background(), storageConfig)
+	s, err := NewTempStorage()
 	require.NoError(b, err)
 
 	srv := httptest.NewServer(NewRouter(s, ""))
@@ -309,7 +308,7 @@ func BenchmarkServer_PutMetricJSON(b *testing.B) {
 
 func BenchmarkServer_PutMetricJSONParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
-		s, err := storage.New(context.Background(), storageConfig)
+		s, err := NewTempStorage()
 		require.NoError(b, err)
 
 		srv := httptest.NewServer(NewRouter(s, ""))
@@ -342,7 +341,7 @@ func BenchmarkServer_PutMetricJSONParallel(b *testing.B) {
 }
 
 func BenchmarkServer_GetMetricJSON(b *testing.B) {
-	s, err := storage.New(context.Background(), storageConfig)
+	s, err := NewTempStorage()
 	require.NoError(b, err)
 
 	srv := httptest.NewServer(NewRouter(s, ""))
@@ -377,7 +376,7 @@ func BenchmarkServer_GetMetricJSON(b *testing.B) {
 
 func BenchmarkServer_GetMetricJSONParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
-		s, err := storage.New(context.Background(), storageConfig)
+		s, err := NewTempStorage()
 		require.NoError(b, err)
 
 		srv := httptest.NewServer(NewRouter(s, ""))
