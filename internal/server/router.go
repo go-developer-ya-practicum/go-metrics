@@ -6,15 +6,17 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/hikjik/go-metrics/internal/encryption"
 	"github.com/hikjik/go-metrics/internal/metrics"
 	"github.com/hikjik/go-metrics/internal/storage"
 )
 
 // NewRouter регистрирует обработчики и возвращает роутер chi.Mux
-func NewRouter(storage storage.Storage, key string) *chi.Mux {
+func NewRouter(storage storage.Storage, decrypter encryption.Decrypter, signer metrics.Signer) *chi.Mux {
 	srv := &Server{
-		Storage: storage,
-		Signer:  metrics.NewHMACSigner(key),
+		Storage:   storage,
+		Signer:    signer,
+		Decrypter: decrypter,
 	}
 
 	router := chi.NewRouter()

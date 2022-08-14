@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 
+	"github.com/hikjik/go-metrics/internal/encryption"
 	"github.com/hikjik/go-metrics/internal/metrics"
 	"github.com/hikjik/go-metrics/internal/storage"
 )
@@ -21,8 +22,9 @@ import (
 var fs embed.FS
 
 type Server struct {
-	Storage storage.Storage
-	Signer  metrics.Signer
+	Storage   storage.Storage
+	Signer    metrics.Signer
+	Decrypter encryption.Decrypter
 }
 
 // PingDatabase хендлер для проверки доступности базы данных
@@ -74,7 +76,7 @@ func (s *Server) GetAllMetrics() http.HandlerFunc {
 }
 
 // GetMetric хендлер, возвращающий текущее значение запрашиваемой метрики в текстовом виде.
-// Параметры метрики передаются из URL параметрах запроса
+// Параметры метрики передаются из URL в параметрах запроса
 func (s *Server) GetMetric() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := &metrics.Metric{
@@ -130,10 +132,12 @@ func (s *Server) GetMetricJSON() http.HandlerFunc {
 			return
 		}
 
-		if err = s.Signer.Sign(&m); err != nil {
-			log.Warn().Err(err).Msg("Failed to set hash")
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+		if s.Signer != nil {
+			if err = s.Signer.Sign(&m); err != nil {
+				log.Warn().Err(err).Msg("Failed to set hash")
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		}
 
 		if err = json.NewEncoder(w).Encode(m); err != nil {
@@ -190,22 +194,31 @@ func (s *Server) PutMetricJSON() http.HandlerFunc {
 			return
 		}
 
+		decryptedData, err := s.decryptRequestBody(r)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Warn().Err(err).Msg("Failed to decrypt request body")
+			return
+		}
+
 		var m metrics.Metric
-		if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+		if err = json.Unmarshal(decryptedData, &m); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		ok, err := s.Signer.Validate(&m)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Warn().Err(err).Msg("Failed to validate hash")
-			return
-		}
-		if !ok {
-			w.WriteHeader(http.StatusBadRequest)
-			log.Info().Msgf("Invalid hash: %v", m)
-			return
+		if s.Signer != nil {
+			ok, err := s.Signer.Validate(&m)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				log.Warn().Err(err).Msg("Failed to validate hash")
+				return
+			}
+			if !ok {
+				w.WriteHeader(http.StatusBadRequest)
+				log.Info().Msgf("Invalid hash: %v", m)
+				return
+			}
 		}
 
 		if err := s.Storage.Put(r.Context(), &m); err != nil {
@@ -225,23 +238,31 @@ func (s *Server) PutMetricBatchJSON() http.HandlerFunc {
 			return
 		}
 
+		decryptedData, err := s.decryptRequestBody(r)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Warn().Err(err).Msg("Failed to decrypt request body")
+			return
+		}
+
 		var metricsBatch []metrics.Metric
-		if err := json.NewDecoder(r.Body).Decode(&metricsBatch); err != nil {
+		if err = json.Unmarshal(decryptedData, &metricsBatch); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		for _, m := range metricsBatch {
-
-			ok, err := s.Signer.Validate(&m)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				log.Warn().Err(err).Msg("Failed to validate hash")
-				return
-			}
-			if !ok {
-				w.WriteHeader(http.StatusBadRequest)
-				log.Info().Msgf("Invalid hash: %v", m)
-				return
+			if s.Signer != nil {
+				ok, err := s.Signer.Validate(&m)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					log.Warn().Err(err).Msg("Failed to validate hash")
+					return
+				}
+				if !ok {
+					w.WriteHeader(http.StatusBadRequest)
+					log.Info().Msgf("Invalid hash: %v", m)
+					return
+				}
 			}
 
 			if err := s.Storage.Put(r.Context(), &m); err != nil {
@@ -265,4 +286,17 @@ func handleStorageError(w http.ResponseWriter, err error) {
 		log.Warn().Err(err).Msg("Failed to put metric")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+}
+
+func (s *Server) decryptRequestBody(r *http.Request) ([]byte, error) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.Decrypter == nil {
+		return body, nil
+	}
+
+	return s.Decrypter.Decrypt(body)
 }
