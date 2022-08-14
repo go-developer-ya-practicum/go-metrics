@@ -18,7 +18,7 @@ func ExampleServer_PutMetricJSON() {
 	if err != nil {
 		log.Fatal().Msg("Failed to create storage")
 	}
-	router := NewRouter(s, nil, nil)
+	router := NewRouter(s, nil, nil, "")
 
 	srv := httptest.NewServer(router)
 
@@ -51,7 +51,7 @@ func ExampleServer_PutMetric() {
 	if err != nil {
 		log.Fatal().Msg("Failed to create storage")
 	}
-	router := NewRouter(s, nil, nil)
+	router := NewRouter(s, nil, nil, "")
 
 	srv := httptest.NewServer(router)
 
@@ -80,7 +80,7 @@ func ExampleServer_GetMetricJSON() {
 	if err != nil {
 		log.Fatal().Msg("Failed to create storage")
 	}
-	router := NewRouter(s, nil, nil)
+	router := NewRouter(s, nil, nil, "")
 
 	srv := httptest.NewServer(router)
 

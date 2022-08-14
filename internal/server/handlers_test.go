@@ -115,7 +115,7 @@ func TestPutGetHandler(t *testing.T) {
 
 	s, err := NewTempStorage()
 	require.NoError(t, err)
-	router := NewRouter(s, nil, nil)
+	router := NewRouter(s, nil, nil, "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.target, nil)
@@ -142,7 +142,7 @@ func TestGetAllHandler(t *testing.T) {
 
 		s, err := NewTempStorage()
 		require.NoError(t, err)
-		router := NewRouter(s, nil, nil)
+		router := NewRouter(s, nil, nil, "")
 		router.ServeHTTP(w, request)
 
 		response := w.Result()
@@ -253,7 +253,7 @@ func TestPutGetJSONHandler(t *testing.T) {
 
 	s, err := NewTempStorage()
 	require.NoError(t, err)
-	router := NewRouter(s, nil, nil)
+	router := NewRouter(s, nil, nil, "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.target, strings.NewReader(tt.body))
@@ -278,7 +278,8 @@ func BenchmarkServer_PutMetricJSON(b *testing.B) {
 	s, err := NewTempStorage()
 	require.NoError(b, err)
 
-	srv := httptest.NewServer(NewRouter(s, nil, nil))
+	router := NewRouter(s, nil, nil, "")
+	srv := httptest.NewServer(router)
 	defer srv.Close()
 
 	metric := metrics.NewGauge("SomeMetric", 1.0)
@@ -311,7 +312,8 @@ func BenchmarkServer_PutMetricJSONParallel(b *testing.B) {
 		s, err := NewTempStorage()
 		require.NoError(b, err)
 
-		srv := httptest.NewServer(NewRouter(s, nil, nil))
+		router := NewRouter(s, nil, nil, "")
+		srv := httptest.NewServer(router)
 		defer srv.Close()
 
 		metric := metrics.NewGauge("SomeMetric", 1.0)
@@ -344,7 +346,8 @@ func BenchmarkServer_GetMetricJSON(b *testing.B) {
 	s, err := NewTempStorage()
 	require.NoError(b, err)
 
-	srv := httptest.NewServer(NewRouter(s, nil, nil))
+	router := NewRouter(s, nil, nil, "")
+	srv := httptest.NewServer(router)
 	defer srv.Close()
 
 	metric := metrics.NewGauge("SomeMetric", 1.0)
@@ -379,7 +382,8 @@ func BenchmarkServer_GetMetricJSONParallel(b *testing.B) {
 		s, err := NewTempStorage()
 		require.NoError(b, err)
 
-		srv := httptest.NewServer(NewRouter(s, nil, nil))
+		router := NewRouter(s, nil, nil, "")
+		srv := httptest.NewServer(router)
 		defer srv.Close()
 
 		metric := metrics.NewGauge("SomeMetric", 1.0)

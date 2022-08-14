@@ -46,8 +46,13 @@ func main() {
 	signer := metrics.NewHMACSigner(cfg.SignatureKey)
 
 	srv := &http.Server{
-		Addr:    cfg.Address,
-		Handler: server.NewRouter(metricsStorage, decrypter, signer),
+		Addr: cfg.Address,
+		Handler: server.NewRouter(
+			metricsStorage,
+			decrypter,
+			signer,
+			cfg.TrustedSubnet,
+		),
 	}
 
 	idle := make(chan struct{})

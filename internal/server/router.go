@@ -12,7 +12,12 @@ import (
 )
 
 // NewRouter регистрирует обработчики и возвращает роутер chi.Mux
-func NewRouter(storage storage.Storage, decrypter encryption.Decrypter, signer metrics.Signer) *chi.Mux {
+func NewRouter(
+	storage storage.Storage,
+	decrypter encryption.Decrypter,
+	signer metrics.Signer,
+	trustedSubnet string,
+) *chi.Mux {
 	srv := &Server{
 		Storage:   storage,
 		Signer:    signer,
@@ -21,6 +26,8 @@ func NewRouter(storage storage.Storage, decrypter encryption.Decrypter, signer m
 
 	router := chi.NewRouter()
 	router.Use(middleware.Compress(5))
+	router.Use(middleware.RealIP)
+	router.Use(FilterIP(trustedSubnet))
 	router.Mount("/debug", middleware.Profiler())
 	router.Get("/ping", srv.PingDatabase())
 	router.Get("/", srv.GetAllMetrics())

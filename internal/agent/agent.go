@@ -77,7 +77,11 @@ func (a *Agent) sendMetrics() {
 	}
 
 	url := fmt.Sprintf("http://%s/updates/", a.address)
-	response, err := http.Post(url, "application/json", bytes.NewBuffer(encryptedData))
+
+	client := http.Client{
+		Transport: CustomTransport{http.DefaultTransport},
+	}
+	response, err := client.Post(url, "application/json", bytes.NewBuffer(encryptedData))
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to post metric")
 		return
