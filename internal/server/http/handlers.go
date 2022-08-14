@@ -1,4 +1,4 @@
-package server
+package http
 
 import (
 	"embed"
@@ -13,7 +13,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 
-	"github.com/hikjik/go-metrics/internal/encryption"
 	"github.com/hikjik/go-metrics/internal/metrics"
 	"github.com/hikjik/go-metrics/internal/storage"
 )
@@ -21,13 +20,7 @@ import (
 //go:embed res
 var fs embed.FS
 
-type Server struct {
-	Storage   storage.Storage
-	Signer    metrics.Signer
-	Decrypter encryption.Decrypter
-}
-
-// PingDatabase хендлер для проверки доступности базы данных
+// PingDatabase обработчик для проверки доступности базы данных
 func (s *Server) PingDatabase() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		db, ok := s.Storage.(*storage.DBStorage)
@@ -46,7 +39,7 @@ func (s *Server) PingDatabase() http.HandlerFunc {
 	}
 }
 
-// GetAllMetrics хендлер, возвращающий html-страницу
+// GetAllMetrics обработчик, возвращающий html-страницу
 // с информацией о всех сохраненных метриках
 func (s *Server) GetAllMetrics() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -75,8 +68,8 @@ func (s *Server) GetAllMetrics() http.HandlerFunc {
 	}
 }
 
-// GetMetric хендлер, возвращающий текущее значение запрашиваемой метрики в текстовом виде.
-// Параметры метрики передаются из URL в параметрах запроса
+// GetMetric обработчик, возвращающий текущее значение запрашиваемой метрики в текстовом виде.
+// Параметры метрики передаются в URL параметрах запроса
 func (s *Server) GetMetric() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := &metrics.Metric{
@@ -103,7 +96,7 @@ func (s *Server) GetMetric() http.HandlerFunc {
 	}
 }
 
-// GetMetricJSON хендлер, возвращающий текущее значение запрашиваемой метрики.
+// GetMetricJSON обработчик, возвращающий текущее значение запрашиваемой метрики.
 // Параметры метрики передаются в теле запроса в формате JSON
 func (s *Server) GetMetricJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -148,8 +141,8 @@ func (s *Server) GetMetricJSON() http.HandlerFunc {
 	}
 }
 
-// PutMetric хендлер принимает и сохраняет переданное значение метрики.
-// Параметры метрики передаются из URL параметрах запроса
+// PutMetric обработчик принимает и сохраняет переданное значение метрики.
+// Параметры метрики передаются в URL параметрах запроса
 func (s *Server) PutMetric() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		metricValue := chi.URLParam(r, "metricValue")
@@ -185,7 +178,7 @@ func (s *Server) PutMetric() http.HandlerFunc {
 	}
 }
 
-// PutMetricJSON хендлер принимает и сохраняет переданное значение метрики.
+// PutMetricJSON обработчик принимает и сохраняет переданное значение метрики.
 // Параметры метрики передаются в теле запроса в формате JSON
 func (s *Server) PutMetricJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -229,7 +222,7 @@ func (s *Server) PutMetricJSON() http.HandlerFunc {
 	}
 }
 
-// PutMetricBatchJSON хендлер принимает и сохраняет переданные значения метрик.
+// PutMetricBatchJSON обработчик принимает и сохраняет переданные значения метрик.
 // Параметры метрик передаются в теле запроса в формате JSON
 func (s *Server) PutMetricBatchJSON() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

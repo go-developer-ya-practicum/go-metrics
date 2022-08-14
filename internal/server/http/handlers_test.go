@@ -1,4 +1,4 @@
-package server
+package http
 
 import (
 	"bytes"
@@ -16,16 +16,18 @@ import (
 
 	"github.com/hikjik/go-metrics/internal/config"
 	"github.com/hikjik/go-metrics/internal/metrics"
-	"github.com/hikjik/go-metrics/internal/storage"
 )
 
-func NewTempStorage() (storage.Storage, error) {
-	storageConfig := config.StorageConfig{
-		StoreFile:     "tmp/storage.json",
-		StoreInterval: time.Second * 300,
-		Restore:       false,
+func NewTestServer() *Server {
+	cfg := config.ServerConfig{
+		StorageConfig: config.StorageConfig{
+			StoreFile:     "tmp/storage.json",
+			StoreInterval: time.Second * 300,
+			Restore:       false,
+		},
 	}
-	return storage.New(context.Background(), storageConfig)
+
+	return NewServer(cfg)
 }
 
 func TestPutGetHandler(t *testing.T) {
@@ -113,9 +115,7 @@ func TestPutGetHandler(t *testing.T) {
 		},
 	}
 
-	s, err := NewTempStorage()
-	require.NoError(t, err)
-	router := NewRouter(s, nil, nil, "")
+	router := NewTestServer().Route()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(tt.method, tt.target, nil)
@@ -140,9 +140,7 @@ func TestGetAllHandler(t *testing.T) {
 		request := httptest.NewRequest(http.MethodGet, "/", nil)
 		w := httptest.NewRecorder()
 
-		s, err := NewTempStorage()
-		require.NoError(t, err)
-		router := NewRouter(s, nil, nil, "")
+		router := NewTestServer().Route()
 		router.ServeHTTP(w, request)
 
 		response := w.Result()
@@ -251,9 +249,7 @@ func TestPutGetJSONHandler(t *testing.T) {
 		},
 	}
 
-	s, err := NewTempStorage()
-	require.NoError(t, err)
-	router := NewRouter(s, nil, nil, "")
+	router := NewTestServer().Route()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.target, strings.NewReader(tt.body))
@@ -275,10 +271,7 @@ func TestPutGetJSONHandler(t *testing.T) {
 }
 
 func BenchmarkServer_PutMetricJSON(b *testing.B) {
-	s, err := NewTempStorage()
-	require.NoError(b, err)
-
-	router := NewRouter(s, nil, nil, "")
+	router := NewTestServer().Route()
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
@@ -291,7 +284,7 @@ func BenchmarkServer_PutMetricJSON(b *testing.B) {
 		b.StopTimer()
 
 		var buf bytes.Buffer
-		err = json.NewEncoder(&buf).Encode(metric)
+		err := json.NewEncoder(&buf).Encode(metric)
 		require.NoError(b, err)
 
 		req, err := http.NewRequest(http.MethodPost, srv.URL+"/update/", &buf)
@@ -309,10 +302,7 @@ func BenchmarkServer_PutMetricJSON(b *testing.B) {
 
 func BenchmarkServer_PutMetricJSONParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
-		s, err := NewTempStorage()
-		require.NoError(b, err)
-
-		router := NewRouter(s, nil, nil, "")
+		router := NewTestServer().Route()
 		srv := httptest.NewServer(router)
 		defer srv.Close()
 
@@ -325,7 +315,7 @@ func BenchmarkServer_PutMetricJSONParallel(b *testing.B) {
 			b.StopTimer()
 
 			var buf bytes.Buffer
-			err = json.NewEncoder(&buf).Encode(metric)
+			err := json.NewEncoder(&buf).Encode(metric)
 			require.NoError(b, err)
 
 			req, err := http.NewRequest(http.MethodPost, srv.URL+"/update/", &buf)
@@ -343,15 +333,12 @@ func BenchmarkServer_PutMetricJSONParallel(b *testing.B) {
 }
 
 func BenchmarkServer_GetMetricJSON(b *testing.B) {
-	s, err := NewTempStorage()
-	require.NoError(b, err)
-
-	router := NewRouter(s, nil, nil, "")
-	srv := httptest.NewServer(router)
+	server := NewTestServer()
+	srv := httptest.NewServer(server.Route())
 	defer srv.Close()
 
 	metric := metrics.NewGauge("SomeMetric", 1.0)
-	err = s.Put(context.Background(), metric)
+	err := server.Storage.Put(context.Background(), metric)
 	require.NoError(b, err)
 
 	b.ReportAllocs()
@@ -379,15 +366,12 @@ func BenchmarkServer_GetMetricJSON(b *testing.B) {
 
 func BenchmarkServer_GetMetricJSONParallel(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
-		s, err := NewTempStorage()
-		require.NoError(b, err)
-
-		router := NewRouter(s, nil, nil, "")
-		srv := httptest.NewServer(router)
+		server := NewTestServer()
+		srv := httptest.NewServer(server.Route())
 		defer srv.Close()
 
 		metric := metrics.NewGauge("SomeMetric", 1.0)
-		err = s.Put(context.Background(), metric)
+		err := server.Storage.Put(context.Background(), metric)
 		require.NoError(b, err)
 
 		b.ReportAllocs()

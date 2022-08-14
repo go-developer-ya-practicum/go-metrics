@@ -1,4 +1,4 @@
-// Package storage предоставляет интерфейс для хранения рантайм-метрик.
+// Package storage предоставляет интерфейс для хранения метрик.
 package storage
 
 import (
@@ -28,7 +28,7 @@ type Storage interface {
 	List(ctx context.Context) ([]*metrics.Metric, error)
 }
 
-// New вовращает объект типа Storage
+// New возвращает объект типа Storage
 func New(ctx context.Context, cfg config.StorageConfig) (Storage, error) {
 	if cfg.DatabaseDNS != "" {
 		return newDBStorage(ctx, cfg)

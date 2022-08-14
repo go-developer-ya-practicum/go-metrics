@@ -31,6 +31,7 @@ type StorageConfig struct {
 // ServerConfig содержит настройки сервера по сбору рантайм-метрик
 type ServerConfig struct {
 	Address           string `env:"ADDRESS" json:"address"`
+	GRPCAddress       string `env:"GRPC_ADDRESS" json:"grpc_address"`
 	SignatureKey      string `env:"KEY" json:"key"`
 	EncryptionKeyPath string `env:"CRYPTO_KEY" json:"crypto_key"`
 	TrustedSubnet     string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
@@ -71,6 +72,7 @@ func GetServerConfig() ServerConfig {
 	var path string
 
 	flag.StringVar(&config.Address, "a", "127.0.0.1:8080", "Server Address")
+	flag.StringVar(&config.GRPCAddress, "g", "127.0.0.1:8081", "Server GRPC Address")
 	flag.StringVar(&config.SignatureKey, "k", "", "HMAC key")
 	flag.StringVar(&config.TrustedSubnet, "t", "", "Trusted subnet")
 	flag.StringVar(&config.StorageConfig.StoreFile, "f", "/tmp/devops-metrics-db.json", "Store File")
