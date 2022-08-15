@@ -24,17 +24,11 @@ func main() {
 		log.Warn().Err(err).Msg("Failed to print build info")
 	}
 
-	a, err := agent.New(config.GetAgentConfig())
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to setup agent")
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(
+		context.Background(), syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	a.Run(ctx)
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	<-sig
+	log.Info().Msg("Start agent")
+	agent.New(config.GetAgentConfig()).Run(ctx)
+	<-ctx.Done()
 }

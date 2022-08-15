@@ -41,12 +41,14 @@ func main() {
 		http.NewServer(cfg).Run(ctx)
 	}()
 
-	log.Info().Msgf("Start grpc server: %s", cfg.GRPCAddress)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		grpc.NewServer(cfg).Run(ctx)
-	}()
+	if cfg.GRPCAddress != "" {
+		log.Info().Msgf("Start grpc server: %s", cfg.GRPCAddress)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			grpc.NewServer(cfg).Run(ctx)
+		}()
+	}
 
 	wg.Wait()
 }
