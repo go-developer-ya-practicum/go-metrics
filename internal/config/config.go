@@ -14,6 +14,7 @@ import (
 // AgentConfig содержит настройки агента по сбору метрик
 type AgentConfig struct {
 	Address        string        `env:"ADDRESS" json:"address"`
+	GRPCAddress    string        `env:"GRPC_ADDRESS" json:"grpc_address"`
 	SignatureKey   string        `env:"KEY" json:"key"`
 	PublicKeyPath  string        `env:"CRYPTO_KEY" json:"crypto_key"`
 	PollInterval   time.Duration `env:"POLL_INTERVAL" json:"poll_interval"`
@@ -31,8 +32,10 @@ type StorageConfig struct {
 // ServerConfig содержит настройки сервера по сбору рантайм-метрик
 type ServerConfig struct {
 	Address           string `env:"ADDRESS" json:"address"`
+	GRPCAddress       string `env:"GRPC_ADDRESS" json:"grpc_address"`
 	SignatureKey      string `env:"KEY" json:"key"`
 	EncryptionKeyPath string `env:"CRYPTO_KEY" json:"crypto_key"`
+	TrustedSubnet     string `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
 	StorageConfig     StorageConfig
 }
 
@@ -42,6 +45,7 @@ func GetAgentConfig() AgentConfig {
 	var path string
 
 	flag.StringVar(&config.Address, "a", "127.0.0.1:8080", "Server address")
+	flag.StringVar(&config.GRPCAddress, "g", "", "Server GRPC Address")
 	flag.DurationVar(&config.PollInterval, "p", time.Second*2, "Poll interval, sec")
 	flag.DurationVar(&config.ReportInterval, "r", time.Second*10, "Report interval, sec")
 	flag.StringVar(&config.SignatureKey, "k", "", "HMAC key")
@@ -70,7 +74,9 @@ func GetServerConfig() ServerConfig {
 	var path string
 
 	flag.StringVar(&config.Address, "a", "127.0.0.1:8080", "Server Address")
+	flag.StringVar(&config.GRPCAddress, "g", "", "Server GRPC Address")
 	flag.StringVar(&config.SignatureKey, "k", "", "HMAC key")
+	flag.StringVar(&config.TrustedSubnet, "t", "", "Trusted subnet")
 	flag.StringVar(&config.StorageConfig.StoreFile, "f", "/tmp/devops-metrics-db.json", "Store File")
 	flag.DurationVar(&config.StorageConfig.StoreInterval, "i", time.Second*300, "Store Interval")
 	flag.BoolVar(&config.StorageConfig.Restore, "r", true, "Restore After Start")

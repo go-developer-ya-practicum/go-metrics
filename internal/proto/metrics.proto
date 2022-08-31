@@ -1,0 +1,38 @@
+syntax = "proto3";
+package proto;
+
+option go_package = "github.com/hikjik/go-metrics/proto";
+
+message Metric {
+  enum Type {
+    GAUGE = 0;
+    COUNTER = 1;
+  }
+
+  string id = 1;
+  Type type = 2;
+  int64  delta = 3;
+  double  value = 4;
+  string hash = 5;
+}
+
+message PutMetricRequest {
+  Metric metric = 1;
+}
+
+message PutMetricResponse {
+}
+
+message GetMetricRequest {
+  Metric metric = 1;
+}
+
+message GetMetricResponse {
+  Metric metric = 1;
+}
+
+service Metrics {
+  rpc GetMetric(GetMetricRequest) returns (GetMetricResponse);
+  rpc PutMetric(PutMetricRequest) returns (PutMetricResponse);
+  rpc PutMetrics(stream PutMetricRequest) returns (PutMetricResponse);
+}

@@ -1,20 +1,18 @@
 // Package agent содержит реализацию агента,
-// собирающего и отправляющего на сервер значения рантайм метрик
+// собирающего и отправляющего на сервер значения метрик
+// с заданной периодичностью
 package agent
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/rs/zerolog/log"
 
+	"github.com/hikjik/go-metrics/internal/agent/sender"
+	"github.com/hikjik/go-metrics/internal/agent/sender/grpc"
+	"github.com/hikjik/go-metrics/internal/agent/sender/http"
 	"github.com/hikjik/go-metrics/internal/config"
-	"github.com/hikjik/go-metrics/internal/encryption"
-	"github.com/hikjik/go-metrics/internal/encryption/rsa"
 	"github.com/hikjik/go-metrics/internal/metrics"
 	"github.com/hikjik/go-metrics/internal/scheduler"
 )
@@ -22,30 +20,25 @@ import (
 type Agent struct {
 	collector      *metrics.Collector
 	signer         metrics.Signer
-	encrypter      encryption.Encrypter
-	address        string
+	sender         sender.MetricSender
 	pollInterval   time.Duration
 	reportInterval time.Duration
 }
 
-func New(cfg config.AgentConfig) (*Agent, error) {
-	collector := metrics.NewCollector()
-
-	encrypter, err := rsa.NewEncrypter(cfg.PublicKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to setup rsa encryption")
-	}
-
-	signer := metrics.NewHMACSigner(cfg.SignatureKey)
-
-	return &Agent{
-		collector:      collector,
-		signer:         signer,
-		encrypter:      encrypter,
-		address:        cfg.Address,
+func New(cfg config.AgentConfig) *Agent {
+	agent := &Agent{
+		collector:      metrics.NewCollector(),
+		signer:         metrics.NewHMACSigner(cfg.SignatureKey),
+		sender:         http.New(cfg.Address, cfg.PublicKeyPath),
 		pollInterval:   cfg.PollInterval,
 		reportInterval: cfg.ReportInterval,
-	}, nil
+	}
+	if cfg.GRPCAddress != "" {
+		agent.sender = grpc.New(cfg.GRPCAddress)
+	} else {
+		agent.sender = http.New(cfg.Address, cfg.PublicKeyPath)
+	}
+	return agent
 }
 
 func (a *Agent) Run(ctx context.Context) {
@@ -53,43 +46,17 @@ func (a *Agent) Run(ctx context.Context) {
 
 	s.Add(ctx, a.collector.UpdateRuntimeMetrics, a.pollInterval)
 	s.Add(ctx, a.collector.UpdateUtilizationMetrics, a.pollInterval)
-	s.Add(ctx, a.sendMetrics, a.reportInterval)
+	s.Add(ctx, a.sendMetrics(ctx), a.reportInterval)
 }
 
-func (a *Agent) sendMetrics() {
-	collection := a.collector.ListMetrics()
-	for _, metric := range collection {
-		if err := a.signer.Sign(metric); err != nil {
-			log.Warn().Err(err).Msg("Failed to set hash")
+func (a *Agent) sendMetrics(ctx context.Context) func() {
+	return func() {
+		collection := a.collector.ListMetrics()
+		for _, metric := range collection {
+			if err := a.signer.Sign(metric); err != nil {
+				log.Warn().Err(err).Msg("Failed to set hash")
+			}
 		}
+		a.sender.Send(ctx, collection)
 	}
-
-	data, err := json.Marshal(collection)
-	if err != nil {
-		log.Warn().Err(err).Msg("Failed to marshal metrics")
-		return
-	}
-
-	encryptedData, err := a.encryptData(data)
-	if err != nil {
-		log.Warn().Err(err).Msg("Failed to encrypt metrics data")
-		return
-	}
-
-	url := fmt.Sprintf("http://%s/updates/", a.address)
-	response, err := http.Post(url, "application/json", bytes.NewBuffer(encryptedData))
-	if err != nil {
-		log.Warn().Err(err).Msg("Failed to post metric")
-		return
-	}
-	if err = response.Body.Close(); err != nil {
-		log.Warn().Err(err).Msg("Failed to close response body")
-	}
-}
-
-func (a *Agent) encryptData(data []byte) ([]byte, error) {
-	if a.encrypter == nil {
-		return data, nil
-	}
-	return a.encrypter.Encrypt(data)
 }

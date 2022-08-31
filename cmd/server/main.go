@@ -2,19 +2,17 @@ package main
 
 import (
 	"context"
-	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/hikjik/go-metrics/internal/config"
-	"github.com/hikjik/go-metrics/internal/encryption/rsa"
 	"github.com/hikjik/go-metrics/internal/greeting"
-	"github.com/hikjik/go-metrics/internal/metrics"
-	"github.com/hikjik/go-metrics/internal/server"
-	"github.com/hikjik/go-metrics/internal/storage"
+	"github.com/hikjik/go-metrics/internal/server/grpc"
+	"github.com/hikjik/go-metrics/internal/server/http"
 )
 
 var (
@@ -28,41 +26,29 @@ func main() {
 		log.Warn().Err(err).Msg("Failed to print build info")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(
+		context.Background(), syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
 	cfg := config.GetServerConfig()
 
-	metricsStorage, err := storage.New(ctx, cfg.StorageConfig)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to create storage")
-	}
+	var wg sync.WaitGroup
 
-	decrypter, err := rsa.NewDecrypter(cfg.EncryptionKeyPath)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to setup rsa decryption")
-	}
-
-	signer := metrics.NewHMACSigner(cfg.SignatureKey)
-
-	srv := &http.Server{
-		Addr:    cfg.Address,
-		Handler: server.NewRouter(metricsStorage, decrypter, signer),
-	}
-
-	idle := make(chan struct{})
+	log.Info().Msgf("Start http server: %s", cfg.Address)
+	wg.Add(1)
 	go func() {
-		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
-		<-sig
-
-		if err = srv.Shutdown(context.Background()); err != nil {
-			log.Error().Err(err).Msg("Failed to shutdown HTTP server")
-		}
-		close(idle)
+		defer wg.Done()
+		http.NewServer(cfg).Run(ctx)
 	}()
-	if err = srv.ListenAndServe(); err != http.ErrServerClosed {
-		log.Error().Err(err).Msg("HTTP server ListenAndServe")
+
+	if cfg.GRPCAddress != "" {
+		log.Info().Msgf("Start grpc server: %s", cfg.GRPCAddress)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			grpc.NewServer(cfg).Run(ctx)
+		}()
 	}
-	<-idle
+
+	wg.Wait()
 }

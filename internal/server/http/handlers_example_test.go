@@ -1,4 +1,4 @@
-package server
+package http
 
 import (
 	"bytes"
@@ -14,17 +14,12 @@ import (
 )
 
 func ExampleServer_PutMetricJSON() {
-	s, err := NewTempStorage()
-	if err != nil {
-		log.Fatal().Msg("Failed to create storage")
-	}
-	router := NewRouter(s, nil, nil)
-
-	srv := httptest.NewServer(router)
+	server := NewTestServer()
+	srv := httptest.NewServer(server.Route())
 
 	metric := metrics.NewGauge("SomeMetric", 1.0)
 	var buf bytes.Buffer
-	if err = json.NewEncoder(&buf).Encode(metric); err != nil {
+	if err := json.NewEncoder(&buf).Encode(metric); err != nil {
 		log.Fatal().Msg("Failed to encode metric")
 	}
 
@@ -47,13 +42,8 @@ func ExampleServer_PutMetricJSON() {
 }
 
 func ExampleServer_PutMetric() {
-	s, err := NewTempStorage()
-	if err != nil {
-		log.Fatal().Msg("Failed to create storage")
-	}
-	router := NewRouter(s, nil, nil)
-
-	srv := httptest.NewServer(router)
+	server := NewTestServer()
+	srv := httptest.NewServer(server.Route())
 
 	metric := metrics.NewGauge("SomeMetric", 1.0)
 
@@ -76,20 +66,15 @@ func ExampleServer_PutMetric() {
 }
 
 func ExampleServer_GetMetricJSON() {
-	s, err := NewTempStorage()
-	if err != nil {
-		log.Fatal().Msg("Failed to create storage")
-	}
-	router := NewRouter(s, nil, nil)
-
-	srv := httptest.NewServer(router)
+	server := NewTestServer()
+	srv := httptest.NewServer(server.Route())
 
 	metric := metrics.NewGauge("SomeMetric", 1.0)
-	if err = s.Put(context.Background(), metric); err != nil {
+	if err := server.Storage.Put(context.Background(), metric); err != nil {
 		log.Fatal().Err(err)
 	}
 	var buf bytes.Buffer
-	if err = json.NewEncoder(&buf).Encode(metric); err != nil {
+	if err := json.NewEncoder(&buf).Encode(metric); err != nil {
 		log.Fatal().Msg("Failed to encode metric")
 	}
 
